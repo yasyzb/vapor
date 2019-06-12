@@ -285,6 +285,7 @@ func (a *API) buildHandler() {
 	m.Handle("/get-block-hash", jsonHandler(a.getBestBlockHash))
 	m.Handle("/get-block-header", jsonHandler(a.getBlockHeader))
 	m.Handle("/get-block-count", jsonHandler(a.getBlockCount))
+	m.Handle("/get-vote-result", jsonHandler(a.GetVoteResult))
 
 	m.Handle("/is-mining", jsonHandler(a.isMining))
 	m.Handle("/set-mining", jsonHandler(a.setMining))

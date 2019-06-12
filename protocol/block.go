@@ -58,6 +58,20 @@ func (c *Chain) GetHeaderByHeight(height uint64) (*types.BlockHeader, error) {
 	return node.BlockHeader(), nil
 }
 
+// GetVoteResultByHeight return vote result by given height
+func (c *Chain) GetVoteResultByHeight(height uint64) (map[string]*state.ConsensusNode, error) {
+	node := c.index.NodeByHeight(height)
+	if node == nil {
+		return nil, errors.New("can't find block header in given height")
+	}
+	return c.consensusNodeManager.getConsensusNodes(&node.Hash)
+}
+
+// GetVoteResultByHash return vote result by given hash
+func (c *Chain) GetVoteResultByHash(hash *bc.Hash) (map[string]*state.ConsensusNode, error) {
+	return c.consensusNodeManager.getConsensusNodes(hash)
+}
+
 func (c *Chain) calcReorganizeNodes(node *state.BlockNode) ([]*state.BlockNode, []*state.BlockNode) {
 	var attachNodes []*state.BlockNode
 	var detachNodes []*state.BlockNode

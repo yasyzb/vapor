@@ -4,9 +4,11 @@ import (
 	set "gopkg.in/fatih/set.v0"
 
 	"github.com/vapor/blockchain/query"
+	"github.com/vapor/crypto/ed25519/chainkd"
 	chainjson "github.com/vapor/encoding/json"
 	"github.com/vapor/protocol/bc"
 	"github.com/vapor/protocol/bc/types"
+	"github.com/vapor/protocol/state"
 )
 
 // return best block hash
@@ -249,4 +251,37 @@ func getMatchedTx(txs []*types.Tx, filterTxIDs []chainjson.HexBytes) []*types.Tx
 		}
 	}
 	return matchedTxs
+}
+
+// GetVoteResultResp is used to handle GetVoteResult req
+type GetVoteResultResp struct {
+	XPub    chainkd.XPub `json:"xPub"`
+	VoteNum uint64       `json:"vote_num"`
+	Order   uint64       `json:"order"`
+}
+
+// GetVoteResult return VoteResult by hash/height
+func (a *API) GetVoteResult(ins BlockReq) Response {
+	resp := []GetVoteResultResp{}
+	voteResult := make(map[string]*state.ConsensusNode)
+	var err error
+
+	if len(ins.BlockHash) == 32 {
+		hash := hexBytesToHash(ins.BlockHash)
+		voteResult, err = a.chain.GetVoteResultByHash(&hash)
+	} else {
+		voteResult, err = a.chain.GetVoteResultByHeight(ins.BlockHeight)
+	}
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+	for _, v := range voteResult {
+		resp = append(resp, GetVoteResultResp{
+			XPub:    v.XPub,
+			VoteNum: v.VoteNum,
+			Order:   v.Order,
+		})
+	}
+
+	return NewSuccessResponse(resp)
 }
