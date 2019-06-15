@@ -19,7 +19,7 @@ func NewWarder(db *gorm.DB, txCh chan *orm.CrossTransaction) *warder {
 
 func (w *warder) Run() {
 	for tx := range w.txCh {
-		if err := validateTx(tx); err != nil {
+		if err := w.validateTx(tx); err != nil {
 			log.Warn("invalid cross-chain tx")
 			continue
 		}
@@ -30,6 +30,15 @@ func (w *warder) Run() {
 
 func (w *warder) proposeDestTx(tx *orm.CrossTransaction) {}
 
-func validateTx(tx *orm.CrossTransaction) error {
+func (w *warder) validateTx(tx *orm.CrossTransaction) error {
+	if tx.Status != common.CrossTxPendingStatus {
+		return errors.New("cross-chain tx already proposed")
+	}
+
+	crossTxReqs := []*orm.CrossTransactionReq{}
+	if err := s.db().Where(&orm.CrossTransactionReq{CrossTransactionID: tx.ID}).Find(&wallets).Error; err != nil {
+		return err
+	}
+
 	return nil
 }
