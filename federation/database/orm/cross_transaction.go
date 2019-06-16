@@ -19,7 +19,7 @@ type CrossTransaction struct {
 	DestBlockHash        sql.NullString
 	DestTxIndex          sql.NullInt64
 	DestTxHash           sql.NullString
-	Status               uint8
+	Status               uint8 `gorm:"not null"`
 	CreatedAt            types.Timestamp
 	UpdatedAt            types.Timestamp
 
