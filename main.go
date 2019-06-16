@@ -5,6 +5,7 @@ import (
 	// "database/sql"
 	"fmt"
 
+	btmTypes "github.com/bytom/protocol/bc/types"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +15,8 @@ import (
 	// "github.com/vapor/federation/database"
 	"github.com/vapor/federation/common"
 	"github.com/vapor/federation/database/orm"
+	"github.com/vapor/federation/service"
+	vaporTypes "github.com/vapor/protocol/bc/types"
 	// "github.com/vapor/federation/synchron"
 )
 
@@ -31,12 +34,17 @@ func main() {
 	// log.Info(reqs)
 
 	txs := []*orm.CrossTransaction{}
-	// if err := db.Preload("Chain").Preload("Reqs").Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).Find(&txs).Error; err == gorm.ErrRecordNotFound {
-	if err := db.Preload("Chain").Preload("Reqs").Where(&orm.CrossTransaction{Status: common.CrossTxPendingStatus}).Find(&txs).Error; err == gorm.ErrRecordNotFound {
+	if err := db.Preload("Chain").Preload("Reqs").Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).Find(&txs).Error; err == gorm.ErrRecordNotFound {
 		log.Warnln("ErrRecordNotFound")
 	} else if err != nil {
 		log.Warnln("collectUnsubmittedTx", err)
 	}
+
+	node := service.NewNode("http://127.0.0.1")
+	tx1 := &btmTypes.Tx{}
+	tx2 := &vaporTypes.Tx{}
+	node.SubmitTx(tx1)
+	node.SubmitTx(tx2)
 
 	// ormTx := &orm.CrossTransaction{
 	// 	ChainID:              1,

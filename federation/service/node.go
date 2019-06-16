@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"log"
 
 	btmTypes "github.com/bytom/protocol/bc/types"
 
@@ -84,12 +85,14 @@ func (n *Node) SubmitTx(tx interface{} /*, isMainchain bool*/) (string, error) {
 		if err != nil {
 			return "", errors.Wrap(err, "json marshal")
 		}
+		log.Println("btmTypes")
 
 	case *vaporTypes.Tx:
 		payload, err = json.Marshal(submitSidechainTxReq{Tx: tx})
 		if err != nil {
 			return "", errors.Wrap(err, "json marshal")
 		}
+		log.Println("vaporTypes")
 
 	default:
 		return "", errors.New("unknown tx type")
