@@ -2,7 +2,7 @@ package main
 
 import (
 	// "sync"
-	"database/sql"
+	// "database/sql"
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -30,30 +30,29 @@ func main() {
 	// db.Where(&orm.CrossTransactionReq{CrossTransactionID: 1}).Find(&reqs)
 	// log.Info(reqs)
 
-	// txs := []*orm.CrossTransaction{}
-	// // if err := db.Preload("Chain").Preload("Reqs").Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).Find(&txs).Error; err == gorm.ErrRecordNotFound {
-	// if err := db.Preload("Chain").Preload("Reqs").Where(&orm.CrossTransaction{Status: common.CrossTxPendingStatus}).Find(&txs).Error; err == gorm.ErrRecordNotFound {
-	// 	log.Warnln("ErrRecordNotFound")
-	// } else if err != nil {
-	// 	log.Warnln("collectUnsubmittedTx", err)
-	// }
+	txs := []*orm.CrossTransaction{}
+	// if err := db.Preload("Chain").Preload("Reqs").Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).Find(&txs).Error; err == gorm.ErrRecordNotFound {
+	if err := db.Preload("Chain").Preload("Reqs").Where(&orm.CrossTransaction{Status: common.CrossTxPendingStatus}).Find(&txs).Error; err == gorm.ErrRecordNotFound {
+		log.Warnln("ErrRecordNotFound")
+	} else if err != nil {
+		log.Warnln("collectUnsubmittedTx", err)
+	}
 
-	ormTx := &orm.CrossTransaction{
-		ChainID:              1,
-		SourceBlockHeight:    2,
-		SourceBlockHash:      "blockHash.String()",
-		SourceTxIndex:        3,
-		SourceMuxID:          "muxID.String()",
-		SourceTxHash:         "tx.ID.String()",
-		SourceRawTransaction: "string(rawTx)",
-		DestBlockHeight:      sql.NullInt64{Valid: false},
-		DestBlockHash:        sql.NullString{Valid: false},
-		DestTxIndex:          sql.NullInt64{Valid: false},
-		DestTxHash:           sql.NullString{Valid: false},
-		Status:               common.CrossTxPendingStatus,
-	}
-	if err := db.Create(ormTx).Error; err != nil {
-		log.Warnln(err)
-		// return nil, errors.Wrap(err, fmt.Sprintf("create mainchain DepositTx %s", tx.ID.String()))
-	}
+	// ormTx := &orm.CrossTransaction{
+	// 	ChainID:              1,
+	// 	SourceBlockHeight:    2,
+	// 	SourceBlockHash:      "blockHash.String()",
+	// 	SourceTxIndex:        3,
+	// 	SourceMuxID:          "muxID.String()",
+	// 	SourceTxHash:         "tx.ID.String()",
+	// 	SourceRawTransaction: "string(rawTx)",
+	// 	DestBlockHeight:      sql.NullInt64{Valid: false},
+	// 	DestBlockHash:        sql.NullString{Valid: false},
+	// 	DestTxIndex:          sql.NullInt64{Valid: false},
+	// 	DestTxHash:           sql.NullString{Valid: false},
+	// 	Status:               common.CrossTxPendingStatus,
+	// }
+	// if err := db.Create(ormTx).Error; err != nil {
+	// 	log.Warnln(err)
+	// }
 }
