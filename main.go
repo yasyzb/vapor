@@ -11,6 +11,7 @@ import (
 	// "github.com/vapor/errors"
 	// "github.com/vapor/federation/config"
 	// "github.com/vapor/federation/database"
+	"github.com/vapor/federation/common"
 	"github.com/vapor/federation/database/orm"
 	// "github.com/vapor/federation/synchron"
 )
@@ -24,7 +25,14 @@ func main() {
 	}
 	db.LogMode(true)
 
-	reqs := []*orm.CrossTransactionReq{}
-	db.Where(&orm.CrossTransactionReq{CrossTransactionID: 1}).Find(&reqs)
-	log.Info(reqs)
+	// reqs := []*orm.CrossTransactionReq{}
+	// db.Where(&orm.CrossTransactionReq{CrossTransactionID: 1}).Find(&reqs)
+	// log.Info(reqs)
+
+	txs := []*orm.CrossTransaction{}
+	if err := db.Preload("Chain").Preload("Reqs").Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).Find(&txs).Error; err == gorm.ErrRecordNotFound {
+		log.Warnln("ErrRecordNotFound")
+	} else if err != nil {
+		log.Warnln("collectUnsubmittedTx", err)
+	}
 }
