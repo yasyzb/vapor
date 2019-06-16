@@ -35,7 +35,7 @@ func NewWarder(cfg *config.Config, db *gorm.DB, txCh chan *orm.CrossTransaction)
 }
 
 func (w *warder) Run() {
-	go w.collectUnsubmittedTx()
+	go w.collectPendingTx()
 
 	for ormTx := range w.txCh {
 		if err := w.validateCrossTx(ormTx); err != nil {
@@ -97,14 +97,18 @@ func (w *warder) Run() {
 	}
 }
 
-func (w *warder) collectUnsubmittedTx() {
+func (w *warder) collectPendingTx() {
 	ticker := time.NewTicker(w.colletInterval)
 	for ; true; <-ticker.C {
 		txs := []*orm.CrossTransaction{}
-		if err := w.db.Preload("Chain").Preload("Reqs").Where(&orm.CrossTransaction{Status: common.CrossTxPendingStatus}).Find(&txs).Error; err == gorm.ErrRecordNotFound {
+		if err := w.db.Preload("Chain").Preload("Reqs").
+			// do not use "Where(&orm.CrossTransaction{Status: common.CrossTxPendingStatus})" directly
+			// otherwise the field "status" is ignored
+			Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).
+			Find(&txs).Error; err == gorm.ErrRecordNotFound {
 			continue
 		} else if err != nil {
-			log.Warnln("collectUnsubmittedTx", err)
+			log.Warnln("collectPendingTx", err)
 		}
 
 		for _, tx := range txs {
@@ -194,10 +198,10 @@ func (w *warder) isLeader() bool {
 func (w *warder) submitTx(destTx interface{}) (string, error) {
 	switch tx := destTx.(type) {
 	case *btmTypes.Tx:
-		return w.mainchainNode.SubmitMainchainTx(tx)
+		return w.mainchainNode.SubmitTx(tx /*, true*/)
 
 	case *vaporTypes.Tx:
-		return w.sidechainNode.SubmitSidechainTx(tx)
+		return w.sidechainNode.SubmitTx(tx /*, false*/)
 
 	default:
 		return "", errors.New("unknown destTx type")
