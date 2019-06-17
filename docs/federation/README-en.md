@@ -25,7 +25,6 @@ A `fed_cfg.json` would look like this:
         },
         "log_mode" : true
     },
-    "collect_unsubimmited_minutes" : 5,
     "warders" : [
         {
             "position" : 1,

@@ -14,12 +14,12 @@ import (
 
 // Node can invoke the api which provide by the full node server
 type Node struct {
-	ip string
+	hostPort string
 }
 
 // Node create a api client with target server
-func NewNode(ip string) *Node {
-	return &Node{ip: ip}
+func NewNode(hostPort string) *Node {
+	return &Node{hostPort: hostPort}
 }
 
 func (n *Node) GetBlockByHash(hash string) (string, *bc.TransactionStatus, error) {
@@ -74,8 +74,8 @@ type submitTxResp struct {
 	TxID string `json:"tx_id"`
 }
 
-func (n *Node) SubmitTx(tx interface{} /*, isMainchain bool*/) (string, error) {
-	url := "/submit-transaction"
+func (n *Node) SubmitTx(tx interface{}) (string, error) {
+	path := "/submit-transaction"
 	var payload []byte
 	var err error
 
@@ -99,7 +99,7 @@ func (n *Node) SubmitTx(tx interface{} /*, isMainchain bool*/) (string, error) {
 	}
 
 	res := &submitTxResp{}
-	return res.TxID, n.request(url, payload, res)
+	return res.TxID, n.request(path, payload, res)
 }
 
 type response struct {
@@ -108,9 +108,9 @@ type response struct {
 	ErrDetail string          `json:"error_detail"`
 }
 
-func (n *Node) request(url string, payload []byte, respData interface{}) error {
+func (n *Node) request(path string, payload []byte, respData interface{}) error {
 	resp := &response{}
-	if err := util.Post(n.ip+url, payload, resp); err != nil {
+	if err := util.Post(n.hostPort+path, payload, resp); err != nil {
 		return err
 	}
 
