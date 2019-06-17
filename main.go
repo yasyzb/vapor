@@ -16,11 +16,16 @@ import (
 	"github.com/vapor/federation/common"
 	"github.com/vapor/federation/database/orm"
 	"github.com/vapor/federation/service"
+	"github.com/vapor/federation/util"
 	vaporTypes "github.com/vapor/protocol/bc/types"
 	// "github.com/vapor/federation/synchron"
 )
 
 func main() {
+	str := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	asset, _ := util.StringToAssetID(str)
+	fmt.Println(asset)
+
 	dsnTemplate := "%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true&loc=Local"
 	dsn := fmt.Sprintf(dsnTemplate, "root", "toor", "127.0.0.1", 3306, "federation")
 	db, err := gorm.Open("mysql", dsn)
