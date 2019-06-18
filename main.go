@@ -38,6 +38,13 @@ func main() {
 	// db.Where(&orm.CrossTransactionReq{CrossTransactionID: 1}).Find(&reqs)
 	// log.Info(reqs)
 
+	// xs :=
+	if err := db.Where(&orm.CrossTransactionSign{CrossTransactionID: 1}).First(&orm.CrossTransactionSign{}).Error; err == nil {
+		log.Warnln("err == nil")
+	} else {
+		log.Warnln("err != nil")
+	}
+
 	txs := []*orm.CrossTransaction{}
 	if err := db.Preload("Chain").Preload("Reqs").Model(&orm.CrossTransaction{}).Where("status = ?", common.CrossTxPendingStatus).Find(&txs).Error; err == gorm.ErrRecordNotFound {
 		log.Warnln("ErrRecordNotFound")
