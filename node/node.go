@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -103,6 +104,61 @@ func NewNode(config *cfg.Config) *Node {
 	if err := checkConfig(chain, config); err != nil {
 		panic(err)
 	}
+
+	addressBlocks := map[string]int{}
+	continueBlocks := map[int]int{}
+	NotFinalizeCount := 0
+
+	bestHeight := chain.BestBlockHeight() / consensus.RoundVoteBlockNums * consensus.RoundVoteBlockNums
+	continueNum := 0
+	currentAddress := ""
+	i := uint64(2401)
+	for ; i <= bestHeight; i++ {
+		block, err := chain.GetBlockByHeight(i)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		cp := hex.EncodeToString(block.Transactions[0].Outputs[0].ControlProgram())
+		addressBlocks[cp]++
+		if currentAddress != cp {
+			continueBlocks[continueNum]++
+			currentAddress = cp
+			continueNum = 0
+		}
+		continueNum++
+
+		signCount := 0
+		for si := uint64(0); si <= 10; si++ {
+			if signBytes := block.BlockWitness.Get(si); signBytes != nil {
+				signCount++
+			}
+		}
+
+		if signCount < 7 {
+			NotFinalizeCount++
+			fmt.Println(block.Height, signCount)
+
+		}
+	}
+
+	firstBlock, err := chain.GetBlockByHeight(2401)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	lastBlock, err := chain.GetBlockByHeight(i)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	fmt.Println("======================continueBlocks======================")
+	fmt.Println(continueBlocks)
+	fmt.Println("======================addressBlocks======================")
+	fmt.Println(addressBlocks)
+	fmt.Println("======================calc======================")
+	fmt.Println("have:", lastBlock.Height-firstBlock.Height, "should:", (lastBlock.Timestamp-firstBlock.Timestamp)/500, "not finalize count", NotFinalizeCount)
+	cmn.Exit("")
 
 	var accounts *account.Manager
 	var assets *asset.Registry
