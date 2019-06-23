@@ -20,10 +20,10 @@ func main() {
 		log.WithField("err", err).Panic("initialize mysql db error")
 	}
 
-	// TODO: refactor
-	go synchron.NewMainchainKeeper(db, cfg).Run()
-	go synchron.NewSidechainKeeper(db, cfg).Run()
-	go federation.NewWarder(db, cfg).Run()
+	assetStore := database.NewAssetStore(db)
+	go synchron.NewMainchainKeeper(db, assetStore, cfg).Run()
+	go synchron.NewSidechainKeeper(db, assetStore, cfg).Run()
+	go federation.NewWarder(db, assetStore, cfg).Run()
 
 	// keep the main func running in case of terminating goroutines
 	var wg sync.WaitGroup

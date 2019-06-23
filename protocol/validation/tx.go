@@ -1,13 +1,11 @@
 package validation
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 
 	"github.com/vapor/config"
 	"github.com/vapor/consensus"
-	"github.com/vapor/consensus/segwit"
 	"github.com/vapor/errors"
 	"github.com/vapor/math/checked"
 	"github.com/vapor/protocol/bc"
@@ -249,7 +247,18 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 		}
 
 	case *bc.CrossChainInput:
-		_, err := vm.Verify(NewTxVMContext(vs, e, e.ControlProgram, e.WitnessArguments), consensus.DefaultGasCredit)
+		// check assetID
+		assetID := e.AssetDefinition.ComputeAssetID()
+		if *e.Value.AssetId != *consensus.BTMAssetID && *e.Value.AssetId != assetID {
+			return errors.New("incorrect asset_id while checking CrossChainInput")
+		}
+
+		code := config.FederationProgrom(config.CommonConfig)
+		prog := &bc.Program{
+			VmVersion: e.ControlProgram.VmVersion,
+			Code:      code,
+		}
+		_, err := vm.Verify(NewTxVMContext(vs, e, prog, e.WitnessArguments), consensus.DefaultGasCredit)
 		if err != nil {
 			return errors.Wrap(err, "checking cross-chain input control program")
 		}
@@ -515,54 +524,10 @@ func checkValidDest(vs *validationState, vd *bc.ValueDestination) error {
 	return nil
 }
 
-func checkFedaration(tx *bc.Tx) error {
-	for _, id := range tx.InputIDs {
-		switch inp := tx.Entries[id].(type) {
-		case *bc.CrossChainInput:
-			fedProg := config.FederationProgrom(config.CommonConfig)
-			if !bytes.Equal(inp.ControlProgram.Code, fedProg) {
-				return errors.New("The federal controlProgram is incorrect")
-			}
-		default:
-			continue
-		}
-	}
-	return nil
-}
-
-func checkStandardTx(tx *bc.Tx, blockHeight uint64) error {
+func checkInputID(tx *bc.Tx, blockHeight uint64) error {
 	for _, id := range tx.InputIDs {
 		if blockHeight >= ruleAA && id.IsZero() {
 			return ErrEmptyInputIDs
-		}
-	}
-
-	if err := checkFedaration(tx); err != nil {
-		return err
-	}
-
-	for _, id := range tx.GasInputIDs {
-		spend, err := tx.Spend(id)
-		if err != nil {
-			continue
-		}
-
-		code := []byte{}
-		outputEntry, err := tx.Entry(*spend.SpentOutputId)
-		if err != nil {
-			return err
-		}
-		switch output := outputEntry.(type) {
-		case *bc.IntraChainOutput:
-			code = output.ControlProgram.Code
-		case *bc.VoteOutput:
-			code = output.ControlProgram.Code
-		default:
-			return errors.Wrapf(bc.ErrEntryType, "entry %x has unexpected type %T", id.Bytes(), outputEntry)
-		}
-
-		if !segwit.IsP2WScript(code) {
-			return ErrNotStandardTx
 		}
 	}
 	return nil
@@ -592,7 +557,7 @@ func ValidateTx(tx *bc.Tx, block *bc.Block) (*GasState, error) {
 	if err := checkTimeRange(tx, block); err != nil {
 		return gasStatus, err
 	}
-	if err := checkStandardTx(tx, block.Height); err != nil {
+	if err := checkInputID(tx, block.Height); err != nil {
 		return gasStatus, err
 	}
 

@@ -1,7 +1,8 @@
 package common
 
 const (
-	CrossTxPendingStatus uint8 = iota
+	CrossTxInitiatedStatus uint8 = iota
+	CrossTxPendingStatus
 	CrossTxRejectedStatus
 	CrossTxSubmittedStatus
 	CrossTxCompletedStatus
@@ -11,4 +12,9 @@ const (
 	CrossTxSignPendingStatus uint8 = iota
 	CrossTxSignCompletedStatus
 	CrossTxSignRejectedStatus
+)
+
+const (
+	MainchainNameLabel = "bytom"
+	SidechainNameLabel = "vapor"
 )
