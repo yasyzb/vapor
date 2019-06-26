@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -88,6 +89,7 @@ func ValidateBlock(b *bc.Block, parent *types.BlockHeader) error {
 	coinbaseAmount := consensus.BlockSubsidy(b.BlockHeader.Height)
 	b.TransactionStatus = bc.NewTransactionStatus()
 
+	start := time.Now()
 	validateResults := ValidateTxs(b.Transactions, b)
 	for i, validateResult := range validateResults {
 		if !validateResult.gasStatus.GasValid {
@@ -102,6 +104,8 @@ func ValidateBlock(b *bc.Block, parent *types.BlockHeader) error {
 			return errOverBlockLimit
 		}
 	}
+	end := time.Now()
+	fmt.Println("validate tx part spend time: ", end.Sub(start))
 
 	if err := checkCoinbaseAmount(b, coinbaseAmount); err != nil {
 		return err
