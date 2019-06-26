@@ -3,12 +3,14 @@ package node
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"github.com/prometheus/prometheus/util/flock"
 	log "github.com/sirupsen/logrus"
@@ -28,9 +30,11 @@ import (
 	"github.com/vapor/event"
 	"github.com/vapor/net/websocket"
 	"github.com/vapor/netsync"
+	"github.com/vapor/proposal"
 	"github.com/vapor/proposal/blockproposer"
 	"github.com/vapor/protocol"
 	"github.com/vapor/protocol/bc/types"
+	"github.com/vapor/test/mock"
 	w "github.com/vapor/wallet"
 )
 
@@ -141,6 +145,32 @@ func NewNode(config *cfg.Config) *Node {
 			}
 		}()
 	}
+
+	key := "e07a306fa454ab95b32f4d184effa87c0caf1cc2182bdbdd8e0207392787254d1967589f0d9dec13a388c0412002d2c267bdf3b920864e1ddc50581be5604ce1"
+	for i := 0; i < 10000; i++ {
+		tx := mock.NewCrosschainTx(key)
+		txPool.ProcessTransaction(tx, false, 0, 0)
+	}
+
+	b, err := proposal.NewBlockTemplate(chain, txPool, accounts, uint64(time.Now().UnixNano()/1e6))
+	if err != nil {
+		cmn.Exit(err.Error())
+	}
+
+	fmt.Println("tx lens: ", len(b.Transactions))
+	start := time.Now()
+	if orphan, err := chain.ProcessBlock(b); err != nil || orphan {
+		cmn.Exit(err.Error())
+	}
+	end := time.Now()
+	fmt.Println("time spend total", end.Sub(start))
+
+	data, err := b.MarshalText()
+	if err != nil {
+		cmn.Exit(err.Error())
+	}
+	fmt.Println("block size: ", len(data))
+	cmn.Exit("")
 
 	node := &Node{
 		eventDispatcher: dispatcher,
