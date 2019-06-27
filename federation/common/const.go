@@ -1,14 +1,12 @@
 package common
 
 const (
-	CrossTxPendingStatus uint8 = iota
-	CrossTxRejectedStatus
-	CrossTxSubmittedStatus
+	_ uint8 = iota
+	CrossTxPendingStatus
 	CrossTxCompletedStatus
 )
 
 const (
-	CrossTxSignPendingStatus uint8 = iota
-	CrossTxSignCompletedStatus
-	CrossTxSignRejectedStatus
+	CrossTxPendingStatusLabel   = "pending"
+	CrossTxCompletedStatusLabel = "completed"
 )

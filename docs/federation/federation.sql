@@ -12,21 +12,6 @@ CREATE SCHEMA IF NOT EXISTS `federation`;
 
 USE `federation`;
 
-# Dump of table warders
-# ------------------------------------------------------------
-
-CREATE TABLE `warders` (
-  `id` tinyint(1) NOT NULL AUTO_INCREMENT,
-  `pubkey` varchar(64) NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `pubkey` (`pubkey`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-LOCK TABLES `warders` WRITE;
-UNLOCK TABLES;
-
 
 # Dump of table chains
 # ------------------------------------------------------------
@@ -62,12 +47,14 @@ CREATE TABLE `cross_transactions` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `chain_id` tinyint(1) NOT NULL,
   `source_block_height` int(11) NOT NULL,
+  `source_block_timestamp` int(11) NOT NULL,
   `source_block_hash` char(64) NOT NULL,
   `source_tx_index` int(11) NOT NULL,
   `source_mux_id` char(64) NOT NULL,
   `source_tx_hash` char(64) NOT NULL,
   `source_raw_transaction` mediumtext NOT NULL,
   `dest_block_height` int(11) DEFAULT NULL,
+  `dest_block_timestamp` int(11) DEFAULT NULL,
   `dest_block_hash` char(64) DEFAULT NULL,
   `dest_tx_index` int(11) DEFAULT NULL,
   `dest_tx_hash` char(64) DEFAULT NULL,
@@ -98,6 +85,8 @@ CREATE TABLE `cross_transaction_reqs` (
   `asset_id` int(11) NOT NULL,
   `asset_amount` bigint(20) DEFAULT '0',
   `script` varchar(128) NOT NULL,
+  `from_address` varchar(128) NOT NULL DEFAULT '',
+  `to_address` varchar(128) NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -107,26 +96,6 @@ CREATE TABLE `cross_transaction_reqs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 LOCK TABLES `cross_transaction_reqs` WRITE;
-UNLOCK TABLES;
-
-
-# Dump of table cross_transaction_signs
-# ------------------------------------------------------------
-CREATE TABLE `cross_transaction_signs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `cross_transaction_id` int(11) NOT NULL,
-  `warder_id` tinyint(1) NOT NULL,
-  `signatures` text NOT NULL,
-  `status` tinyint(1) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `sign_id` (`cross_transaction_id`,`warder_id`),
-  CONSTRAINT `cross_transaction_signs_ibfk_1` FOREIGN KEY (`warder_id`) REFERENCES `warders` (`id`),
-  CONSTRAINT `cross_transaction_signs_ibfk_2` FOREIGN KEY (`cross_transaction_id`) REFERENCES `cross_transactions` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-LOCK TABLES `cross_transaction_signs` WRITE;
 UNLOCK TABLES;
 
 

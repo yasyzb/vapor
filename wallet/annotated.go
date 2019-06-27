@@ -33,6 +33,7 @@ func annotateTxsAsset(w *Wallet, txs []*query.AnnotatedTx) {
 }
 
 func (w *Wallet) getExternalDefinition(assetID *bc.AssetID) json.RawMessage {
+	// definitionByte := w.DB.Get(asset.ExtAssetKey(assetID))
 	definitionByte := w.DB.Get(asset.ExtAssetKey(assetID))
 	if definitionByte == nil {
 		return nil
@@ -219,18 +220,18 @@ func (w *Wallet) getAddressFromControlProgram(prog []byte, isMainchain bool) str
 
 	if segwit.IsP2WPKHScript(prog) {
 		if pubHash, err := segwit.GetHashFromStandardProg(prog); err == nil {
-			return buildP2PKHAddress(pubHash, netParams)
+			return BuildP2PKHAddress(pubHash, netParams)
 		}
 	} else if segwit.IsP2WSHScript(prog) {
 		if scriptHash, err := segwit.GetHashFromStandardProg(prog); err == nil {
-			return buildP2SHAddress(scriptHash, netParams)
+			return BuildP2SHAddress(scriptHash, netParams)
 		}
 	}
 
 	return ""
 }
 
-func buildP2PKHAddress(pubHash []byte, netParams *consensus.Params) string {
+func BuildP2PKHAddress(pubHash []byte, netParams *consensus.Params) string {
 	address, err := common.NewAddressWitnessPubKeyHash(pubHash, netParams)
 	if err != nil {
 		return ""
@@ -239,7 +240,7 @@ func buildP2PKHAddress(pubHash []byte, netParams *consensus.Params) string {
 	return address.EncodeAddress()
 }
 
-func buildP2SHAddress(scriptHash []byte, netParams *consensus.Params) string {
+func BuildP2SHAddress(scriptHash []byte, netParams *consensus.Params) string {
 	address, err := common.NewAddressWitnessScriptHash(scriptHash, netParams)
 	if err != nil {
 		return ""
