@@ -5,12 +5,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/vapor/common"
 	"github.com/vapor/config"
 	"github.com/vapor/event"
 	"github.com/vapor/protocol/bc"
 	"github.com/vapor/protocol/bc/types"
 	"github.com/vapor/protocol/state"
-	"github.com/vapor/common"
 )
 
 const maxProcessBlockChSize = 1024

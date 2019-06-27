@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -187,4 +188,5 @@ func (bi *BlockIndex) SetMainChain(node *BlockNode) {
 		bi.mainChain[node.Height] = node
 		node = node.Parent
 	}
+	fmt.Println("total number of block====================", len(bi.index))
 }
