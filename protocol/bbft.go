@@ -29,6 +29,12 @@ func signCacheKey(blockHash, pubkey string) string {
 	return fmt.Sprintf("%s:%s", blockHash, pubkey)
 }
 
+func (c *Chain) IsIrreversible(block *types.Block) bool {
+	blockHash := block.Hash()
+	node := c.index.GetNode(&blockHash)
+	return c.isIrreversible(node)
+}
+
 func (c *Chain) isIrreversible(blockNode *state.BlockNode) bool {
 	consensusNodes, err := c.consensusNodeManager.getConsensusNodes(&blockNode.Parent.Hash)
 	if err != nil {
