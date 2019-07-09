@@ -122,6 +122,14 @@ func (c *Chain) connectBlock(block *types.Block) (err error) {
 	for _, tx := range block.Transactions {
 		c.txPool.RemoveTransaction(&tx.Tx.ID)
 	}
+
+	// log block finalization
+	blockHash := block.Hash()
+	log.WithFields(log.Fields{
+		"module": logModule,
+		"hash":   blockHash.String(),
+		"height": block.Height,
+		"tx":     len(block.Transactions)}).Info("block append to mainchain")
 	return nil
 }
 
@@ -229,6 +237,11 @@ func (c *Chain) reorganizeChain(blockHeader *types.BlockHeader) error {
 	if err := c.setState(blockHeader, irrBlockHeader, attachBlockHeaders, utxoView, consensusResults); err != nil {
 		return err
 	}
+	// log chain fork stats
+	log.WithFields(log.Fields{
+		"module": logModule,
+		"detach": len(detachBlockHeaders),
+		"attach": len(attachBlockHeaders)}).Info("chain reorganized")
 
 	for txHash := range txsToRemove {
 		c.txPool.RemoveTransaction(&txHash)

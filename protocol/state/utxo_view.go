@@ -1,6 +1,8 @@
 package state
 
 import (
+	log "github.com/sirupsen/logrus"
+
 	"github.com/vapor/consensus"
 	"github.com/vapor/database/storage"
 	"github.com/vapor/errors"
@@ -89,6 +91,10 @@ func (view *UtxoViewpoint) applyCrossChainUtxo(block *bc.Block, tx *bc.Tx) error
 		}
 
 		if entry.Spent {
+			log.WithFields(log.Fields{
+				"height": block.Height,
+				"hash":   tx.ID.String(),
+				"output": prevout}).Error("duplicate spent")
 			return errors.New("mainchain output has been spent")
 		}
 

@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "jeKhTTuU0AEObIC4esPqRG28Lso=",
+			"path": "github.com/golang/time/rate",
+			"revision": "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef",
+			"revisionTime": "2019-02-15T22:48:40Z"
+		}
+	],
+	"rootPath": "github.com/vapor"
+}

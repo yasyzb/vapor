@@ -254,6 +254,11 @@ func (m *Manager) handleTransactionMsg(peer *peers.Peer, msg *msgs.TransactionMe
 	}
 
 	if isOrphan, err := m.chain.ValidateTx(tx); err != nil && err != core.ErrDustTx && !isOrphan {
+		log.WithFields(log.Fields{
+			"module": logModule,
+			"peer":   peer.Addr(),
+			"tx":     tx.ID.String(),
+		}).Error("fail on validate tx")
 		m.peers.ProcessIllegal(peer.ID(), security.LevelMsgIllegal, "fail on validate tx transaction")
 	}
 	m.peers.MarkTx(peer.ID(), tx.ID)
@@ -273,6 +278,11 @@ func (m *Manager) handleTransactionsMsg(peer *peers.Peer, msg *msgs.Transactions
 
 	for _, tx := range txs {
 		if isOrphan, err := m.chain.ValidateTx(tx); err != nil && !isOrphan {
+			log.WithFields(log.Fields{
+				"module": logModule,
+				"peer":   peer.Addr(),
+				"tx":     tx.ID.String(),
+			}).Error("fail on validate tx")
 			m.peers.ProcessIllegal(peer.ID(), security.LevelMsgIllegal, "fail on validate tx transaction")
 			return
 		}

@@ -85,12 +85,18 @@ func (b *BlockProposer) generateBlocks() {
 			log.WithFields(log.Fields{"module": logModule, "height": block.BlockHeader.Height, "error": err}).Error("proposer fail on ProcessBlock")
 			continue
 		}
-
-		log.WithFields(log.Fields{"module": logModule, "height": block.BlockHeader.Height, "isOrphan": isOrphan, "tx": len(block.Transactions)}).Info("proposer processed block")
 		// Broadcast the block and announce chain insertion event
 		if err = b.eventDispatcher.Post(event.NewProposedBlockEvent{Block: *block}); err != nil {
 			log.WithFields(log.Fields{"module": logModule, "height": block.BlockHeader.Height, "error": err}).Error("proposer fail on post block")
 		}
+		// log block creation
+		blockHash := block.Hash()
+		log.WithFields(log.Fields{
+			"module":   logModule,
+			"height":   block.BlockHeader.Height,
+			"hash":     blockHash.String(),
+			"isOrphan": isOrphan,
+			"tx":       len(block.Transactions)}).Info("proposer processed block")
 	}
 }
 

@@ -20,12 +20,22 @@ operation
 
     --remove-all: remove all node images
 
+    --fed: create federation node
+
     --help: print usage message
 EOF
 }
 
 get_pubkey() {
-   docker run --rm -it --entrypoint cat $1 /usr/local/vapord/node_pubkey.txt 
+   docker run --rm --entrypoint cat $1 /usr/local/vapord/node_pubkey.txt
+}
+
+is_fed() {
+    if [ -z `docker run --rm --entrypoint ls $1 /usr/local/vapord/is_fed 2>/dev/null` ]; then
+        echo "0"
+    else
+        echo "1"
+    fi
 }
 
 # text colors
@@ -45,6 +55,8 @@ IMG_PREFIX=vapord_test
 WALLET_PORT_BEGIN=9889
 
 ############## process commandline options ###############
+# type
+type=validator
 # num of nodes
 scale=1
 # operation: build, run, run-all, all, list, remove, remove-all help
@@ -89,6 +101,10 @@ case $i in
         op="down"
         shift
         ;;
+    --fed)
+        type="fed"
+        shift
+        ;;
     --help)
         op="help"
         shift # past argument with no value
@@ -101,7 +117,7 @@ case $i in
 esac
 done
 
-echo "options: scale:${scale}, op:${op} op_arg:${op_arg}"
+echo "options: type:${type} scale:${scale}, op:${op} op_arg:${op_arg}"
 
 if [ "${op}" == "help" ]; then
     usage
@@ -154,15 +170,20 @@ if [ "${op}" == "list" ]; then
     echo -e "${GREEN}list all node images${NC}"
     docker images --filter=reference="${IMG_PREFIX}-*:*"
     echo
-    printf "${CYAN}image name\t\tpublic key${NC}\n"
+    printf "${CYAN}image name\t\tfed\tpublic key${NC}\n"
     img_array=(`docker images --filter=reference="${IMG_PREFIX}-*:*" --format "{{.Repository}}"`)
     for img in "${img_array[@]}"; do
         pubkey=$( get_pubkey ${img} )
+        fed=$( is_fed ${img} )
         if [ -z "${pubkey}" ]; then
             echo -e "${RED}failed to get public key${NC} for node ${img}"
             exit
         fi
-        printf "${img}\t${pubkey}\n"
+        if [ "${fed}" == "0" ]; then
+            printf "${img}\tN\t${pubkey}\n"
+        else
+            printf "${img}\tY\t${pubkey}\n"
+        fi
     done
     exit
 fi
@@ -170,8 +191,13 @@ fi
 ############### build images ################
 if [[ "${op}" == "build" || "${op}" == "all" ]]; then
 for ((i = 1 ; i <= ${scale} ; i++)); do
-    echo -e "${GREEN}building docker image for node #${i}${NC}"
-    docker build --rm -t vapord_tmp . -f ${SCRIPT_DIR}/vapord.Dockerfile
+    if [ "${type}" == "fed" ]; then
+        echo -e "${GREEN}building docker image for fed node #${i}${NC}"
+        docker build --rm -t vapord_tmp . -f ${SCRIPT_DIR}/fed.Dockerfile
+    else
+        echo -e "${GREEN}building docker image for node #${i}${NC}"
+        docker build --rm -t vapord_tmp . -f ${SCRIPT_DIR}/vapord.Dockerfile
+    fi
     # /usr/local/vapord/node_pubkey.txt is the location storing pub_key of node defined in dockerfile
     pubkey=$( get_pubkey vapord_tmp )
     if [ -z "${pubkey}" ]; then
@@ -232,13 +258,18 @@ elif [ "${op}" == "run-all" ]; then
     done
 fi
 
-printf "${CYAN}image name\t\tnode name\tpublic key${NC}\n"
+printf "${CYAN}image name\t\tfed\tnode name\tpublic key${NC}\n"
 
 for id in "${!img_array[@]}"; do
     node=${node_array[id]}
     img=${img_array[id]}
     pubkey=${key_array[id]}
-    printf "${img}\t${node}\t${pubkey}\n"
+    fed=$( is_fed ${img} )
+    if [ "${fed}" == "0" ]; then
+        printf "${img}\tN\t${node}\t${pubkey}\n"
+    else
+        printf "${img}\tY\t${node}\t${pubkey}\n"
+    fi
 done
 
 if [ "${op}" == "build" ]; then

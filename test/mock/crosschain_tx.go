@@ -13,6 +13,10 @@ import (
 	"github.com/vapor/protocol/bc/types"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 func NewCrosschainTx(privateKey string) *types.Tx {
 	var xprv chainkd.XPrv
 	if err := xprv.UnmarshalText([]byte(privateKey)); err != nil {
@@ -21,7 +25,6 @@ func NewCrosschainTx(privateKey string) *types.Tx {
 
 	//generate the tx
 	randomHash := [32]byte{}
-	rand.Seed(time.Now().UnixNano())
 	rand.Read(randomHash[:])
 	builder := txbuilder.NewBuilder(time.Now())
 	input := types.NewCrossChainInput(nil, bc.NewHash(randomHash), *consensus.BTMAssetID, 10000000, 1, 1, []byte{}, []byte{})
