@@ -11,6 +11,7 @@ import (
 	"github.com/vapor/crypto/ed25519/chainkd"
 	"github.com/vapor/protocol/bc"
 	"github.com/vapor/protocol/bc/types"
+	"github.com/vapor/protocol/vm/vmutil"
 )
 
 func init() {
@@ -45,7 +46,12 @@ func NewCrosschainTx(privateKey string) *types.Tx {
 	//sign tx
 	signHash := tpl.Hash(0).Byte32()
 	sign := xprv.Sign(signHash[:])
-	tpl.Transaction.SetInputArguments(0, [][]byte{sign})
+	program, err := vmutil.P2SPMultiSigProgram(chainkd.XPubKeys([]chainkd.XPub{xprv.XPub()}), 1)
+	if err != nil {
+		log.WithField("err", err).Panic("fail to generate federation scirpt for federation")
+	}
+
+	tpl.Transaction.SetInputArguments(0, [][]byte{sign, program})
 
 	data, err := tpl.Transaction.TxData.MarshalText()
 	if err != nil {
