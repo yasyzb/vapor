@@ -7,4 +7,4 @@ moniker = ""
 chain_id = "mainnet"
 [p2p]
 laddr = "tcp://0.0.0.0:56659"
-seeds = "172.31.41.143:56659"
+seeds = "172.31.42.39:56659"
