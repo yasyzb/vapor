@@ -258,6 +258,7 @@ func (m *Manager) handleTransactionMsg(peer *peers.Peer, msg *msgs.TransactionMe
 			"module": logModule,
 			"peer":   peer.Addr(),
 			"tx":     tx.ID.String(),
+			"error":  err,
 		}).Error("fail on validate tx")
 		m.peers.ProcessIllegal(peer.ID(), security.LevelMsgIllegal, "fail on validate tx transaction")
 	}
@@ -282,6 +283,7 @@ func (m *Manager) handleTransactionsMsg(peer *peers.Peer, msg *msgs.Transactions
 				"module": logModule,
 				"peer":   peer.Addr(),
 				"tx":     tx.ID.String(),
+				"error":  err,
 			}).Error("fail on validate tx")
 			m.peers.ProcessIllegal(peer.ID(), security.LevelMsgIllegal, "fail on validate tx transaction")
 			return
