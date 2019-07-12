@@ -303,7 +303,7 @@ func (tp *TxPool) addTransaction(txD *TxDesc) error {
 
 	atomic.StoreInt64(&tp.lastUpdated, time.Now().Unix())
 	tp.eventDispatcher.Post(TxMsgEvent{TxMsg: &TxPoolMsg{TxDesc: txD, MsgType: MsgNewTx}})
-	log.WithFields(log.Fields{"module": logModule, "tx_id": tx.ID.String()}).Debug("Add tx to mempool")
+	log.WithFields(log.Fields{"module": logModule, "tx_id": tx.ID.String()}).Info("Add tx to mempool")
 	return nil
 }
 

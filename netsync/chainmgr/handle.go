@@ -303,7 +303,7 @@ func (m *Manager) processMsg(basePeer peers.BasePeer, msgType byte, msg msgs.Blo
 		"peer":    basePeer.Addr(),
 		"type":    reflect.TypeOf(msg),
 		"message": msg.String(),
-	}).Debug("receive message from peer")
+	}).Info("receive message from peer")
 
 	switch msg := msg.(type) {
 	case *msgs.GetBlockMessage:
