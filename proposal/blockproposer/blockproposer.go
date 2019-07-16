@@ -19,6 +19,23 @@ const (
 	logModule = "blockproposer"
 )
 
+var (
+	pubKeys = []string{
+		"public_key_1",
+		"public_key_2",
+	}
+
+	addresses = []string{
+		"address_1",
+		"address_2",
+	}
+
+	privateKeys = []string{
+		"private_key_1",
+		"private_key_2",
+	}
+)
+
 // BlockProposer propose several block in specified time range
 type BlockProposer struct {
 	sync.Mutex
@@ -70,11 +87,21 @@ func (b *BlockProposer) generateBlocks() {
 			continue
 		}
 
-		if xpubStr != blocker {
+		var hit bool
+		var index int
+		for i, xpubStr := range pubKeys {
+			if xpubStr == blocker {
+				index = i
+				hit = true
+				break
+			}
+		}
+
+		if !hit {
 			continue
 		}
 
-		block, err := proposal.NewBlockTemplate(b.chain, b.txPool, b.accountManager, nextBlockTime)
+		block, err := proposal.NewBlockTemplate(b.chain, b.txPool, b.accountManager, nextBlockTime, addresses[index], xpubStr, privateKeys[index])
 		if err != nil {
 			log.WithFields(log.Fields{"module": logModule, "error": err}).Error("failed on create NewBlockTemplate")
 			continue

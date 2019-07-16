@@ -363,6 +363,11 @@ func (m *Manager) GetCoinbaseArbitrary() []byte {
 	return []byte{}
 }
 
+// GetCoinbaseControlProgramWithAddress will return a coinbase script
+func (m *Manager) GetCoinbaseControlProgramWithAddress(address string) ([]byte, error) {
+	return m.getProgramByAddress(address)
+}
+
 // GetCoinbaseControlProgram will return a coinbase script
 func (m *Manager) GetCoinbaseControlProgram() ([]byte, error) {
 	cp, err := m.GetCoinbaseCtrlProgram()

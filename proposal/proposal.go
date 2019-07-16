@@ -24,13 +24,13 @@ const logModule = "mining"
 // createCoinbaseTx returns a coinbase transaction paying an appropriate subsidy
 // based on the passed block height to the provided address.  When the address
 // is nil, the coinbase transaction will instead be redeemable by anyone.
-func createCoinbaseTx(accountManager *account.Manager, blockHeight uint64) (tx *types.Tx, err error) {
+func createCoinbaseTx(accountManager *account.Manager, blockHeight uint64, address string) (tx *types.Tx, err error) {
 	arbitrary := append([]byte{0x00}, []byte(strconv.FormatUint(blockHeight, 10))...)
 	var script []byte
 	if accountManager == nil {
 		script, err = vmutil.DefaultCoinbaseProgram()
 	} else {
-		script, err = accountManager.GetCoinbaseControlProgram()
+		script, err = accountManager.GetCoinbaseControlProgramWithAddress(address)
 		arbitrary = append(arbitrary, accountManager.GetCoinbaseArbitrary()...)
 	}
 	if err != nil {
@@ -78,7 +78,7 @@ func restructCoinbaseTx(tx *types.Tx, rewards []state.CoinbaseReward) error {
 }
 
 // NewBlockTemplate returns a new block template that is ready to be solved
-func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager *account.Manager, timestamp uint64) (b *types.Block, err error) {
+func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager *account.Manager, timestamp uint64, address, pubKey, priKey string) (b *types.Block, err error) {
 	view := state.NewUtxoViewpoint()
 	txStatus := bc.NewTransactionStatus()
 	if err := txStatus.SetStatus(0, false); err != nil {
@@ -156,7 +156,7 @@ func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager
 	}
 
 	// create coinbase transaction
-	b.Transactions[0], err = createCoinbaseTx(accountManager, nextBlockHeight)
+	b.Transactions[0], err = createCoinbaseTx(accountManager, nextBlockHeight, address)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail on createCoinbaseTx")
 	}
@@ -188,7 +188,7 @@ func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager
 
 	b.BlockHeader.BlockCommitment.TransactionStatusHash, err = types.TxStatusMerkleRoot(txStatus.VerifyStatus)
 
-	_, err = c.SignBlock(b)
+	_, err = c.SignBlockWithKeys(b, pubKey, priKey)
 	return b, err
 }
 
