@@ -6,7 +6,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/config"
 	"github.com/vapor/crypto/ed25519/chainkd"
 	"github.com/vapor/errors"
 	"github.com/vapor/event"
@@ -200,32 +199,7 @@ func (c *Chain) ProcessBlockSignature(signature, xPub []byte, blockHash *bc.Hash
 }
 
 // SignBlock signing the block if current node is consensus node
-func (c *Chain) SignBlock(block *types.Block) ([]byte, error) {
-	xprv := config.CommonConfig.PrivateKey()
-	xpubStr := xprv.XPub().String()
-	node, err := c.getConsensusNode(&block.PreviousBlockHash, xpubStr)
-	if err == errNotFoundConsensusNode {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	if err := c.checkDoubleSign(&block.BlockHeader, node.XPub.String()); err == errDoubleSignBlock {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	signature := block.Get(node.Order)
-	if len(signature) == 0 {
-		signature = xprv.Sign(block.Hash().Bytes())
-		block.Set(node.Order, signature)
-	}
-	return signature, nil
-}
-
-// SignBlockWithKeys signing the block if current node is consensus node
-func (c *Chain) SignBlockWithKeys(block *types.Block, pubKey, priKey string) ([]byte, error) {
+func (c *Chain) SignBlock(block *types.Block, pubKey, priKey string) ([]byte, error) {
 	var xprv chainkd.XPrv
 	if _, err := hex.Decode(xprv[:], []byte(priKey)); err != nil {
 		log.WithField("err", err).Panic("fail on decode private key", priKey)

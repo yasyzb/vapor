@@ -10,6 +10,8 @@ import (
 	"github.com/vapor/protocol/bc/types"
 	"github.com/vapor/protocol/state"
 	"github.com/vapor/protocol/validation"
+	"encoding/hex"
+	"github.com/vapor/crypto/ed25519/chainkd"
 )
 
 var (
@@ -279,22 +281,42 @@ func (c *Chain) saveBlock(block *types.Block) error {
 		return errors.Sub(ErrBadBlock, err)
 	}
 
-	signature, err := c.SignBlock(block)
+	consensusNodeMap, err := c.getConsensusNodes(&block.PreviousBlockHash)
 	if err != nil {
-		return errors.Sub(ErrBadBlock, err)
-	}
-
-	if err := c.store.SaveBlock(block, bcBlock.TransactionStatus); err != nil {
 		return err
 	}
-	c.orphanManage.Delete(&bcBlock.ID)
 
-	if len(signature) != 0 {
-		xPub := config.CommonConfig.PrivateKey().XPub()
-		if err := c.eventDispatcher.Post(event.BlockSignatureEvent{BlockHash: block.Hash(), Signature: signature, XPub: xPub[:]}); err != nil {
-			return err
+	var saved bool
+	for pubKey, _ := range consensusNodeMap {
+		addrKey := config.GetAddrAndPriKey(pubKey)
+		if addrKey == nil {
+			continue
+		}
+
+		signature, err := c.SignBlock(block, pubKey, addrKey.PriKey)
+		if err != nil {
+			return errors.Sub(ErrBadBlock, err)
+		}
+
+		if !saved {
+			if err := c.store.SaveBlock(block, bcBlock.TransactionStatus); err != nil {
+				return err
+			}
+			c.orphanManage.Delete(&bcBlock.ID)
+			saved = true
+		}
+
+		if len(signature) != 0 {
+			var xPub chainkd.XPub
+			if _, err := hex.Decode(xPub[:], []byte(pubKey)); err != nil {
+				log.WithField("err", err).Panic("fail on decode public key", pubKey)
+			}
+			if err := c.eventDispatcher.Post(event.BlockSignatureEvent{BlockHash: block.Hash(), Signature: signature, XPub: xPub[:]}); err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 

@@ -188,7 +188,7 @@ func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager
 
 	b.BlockHeader.BlockCommitment.TransactionStatusHash, err = types.TxStatusMerkleRoot(txStatus.VerifyStatus)
 
-	_, err = c.SignBlockWithKeys(b, pubKey, priKey)
+	_, err = c.SignBlock(b, pubKey, priKey)
 	return b, err
 }
 
