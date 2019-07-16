@@ -286,24 +286,15 @@ func (c *Chain) saveBlock(block *types.Block) error {
 		return err
 	}
 
-	var saved bool
 	for pubKey, _ := range consensusNodeMap {
-		addrKey := config.GetAddrAndPriKey(pubKey)
-		if addrKey == nil {
+		address, priKey := config.GetAddrAndPriKey(pubKey)
+		if address == "" || priKey == "" {
 			continue
 		}
 
-		signature, err := c.SignBlock(block, pubKey, addrKey.PriKey)
+		signature, err := c.SignBlock(block, pubKey, priKey)
 		if err != nil {
 			return errors.Sub(ErrBadBlock, err)
-		}
-
-		if !saved {
-			if err := c.store.SaveBlock(block, bcBlock.TransactionStatus); err != nil {
-				return err
-			}
-			c.orphanManage.Delete(&bcBlock.ID)
-			saved = true
 		}
 
 		if len(signature) != 0 {
@@ -316,6 +307,11 @@ func (c *Chain) saveBlock(block *types.Block) error {
 			}
 		}
 	}
+
+	if err := c.store.SaveBlock(block, bcBlock.TransactionStatus); err != nil {
+		return err
+	}
+	c.orphanManage.Delete(&bcBlock.ID)
 
 	return nil
 }

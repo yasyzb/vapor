@@ -13,11 +13,15 @@ var keyMap = map[string]*addrAndPriKey{
 }
 
 type addrAndPriKey struct {
-	Address string
-	PriKey string
+	address string
+	priKey  string
 }
 
 // GetAddrAndPriKey gets address and private key according to public key
-func GetAddrAndPriKey(pubKey string) *addrAndPriKey {
-	return keyMap[pubKey]
+func GetAddrAndPriKey(pubKey string) (string, string) {
+	key, ok := keyMap[pubKey]
+	if !ok {
+		return "", ""
+	}
+	return key.address, key.priKey
 }
