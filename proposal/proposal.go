@@ -30,7 +30,7 @@ func createCoinbaseTx(accountManager *account.Manager, blockHeight uint64, addre
 	if accountManager == nil {
 		script, err = vmutil.DefaultCoinbaseProgram()
 	} else {
-		script, err = accountManager.GetCoinbaseControlProgramWithAddress(address)
+		script, err = accountManager.GetCoinbaseControlProgram(address)
 		arbitrary = append(arbitrary, accountManager.GetCoinbaseArbitrary()...)
 	}
 	if err != nil {

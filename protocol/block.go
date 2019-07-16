@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/hex"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/vapor/config"
@@ -10,7 +11,6 @@ import (
 	"github.com/vapor/protocol/bc/types"
 	"github.com/vapor/protocol/state"
 	"github.com/vapor/protocol/validation"
-	"encoding/hex"
 	"github.com/vapor/crypto/ed25519/chainkd"
 )
 
