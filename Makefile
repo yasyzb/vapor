@@ -11,7 +11,7 @@ endif
 
 PACKAGES    := $(shell go list ./... | grep -v '/vendor/' | grep -v '/crypto/ed25519/chainkd' | grep -v '/mining/tensority')
 
-BUILD_FLAGS := -ldflags "-X github.com/vapor/version.GitCommit=`git rev-parse HEAD`"
+BUILD_FLAGS := -ldflags "-X github.com/bytom/vapor/version.GitCommit=`git rev-parse HEAD`"
 
 
 VAPORD_BINARY32 := vapord-$(GOOS)_386
@@ -37,6 +37,10 @@ all: test target release-all install
 fedd:
 	@echo "Building fedd to cmd/fedd/fedd"
 	@go build $(BUILD_FLAGS) -o cmd/fedd/fedd cmd/fedd/main.go
+
+precognitive:
+	@echo "Building precognitive to cmd/precognitive/precognitive"
+	@go build $(BUILD_FLAGS) -o cmd/precognitive/precognitive cmd/precognitive/main.go
 
 vapord:
 	@echo "Building vapord to cmd/vapord/vapord"

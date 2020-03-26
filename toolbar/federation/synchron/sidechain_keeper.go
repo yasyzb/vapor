@@ -9,15 +9,15 @@ import (
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/consensus"
-	"github.com/vapor/errors"
-	"github.com/vapor/toolbar/federation/common"
-	"github.com/vapor/toolbar/federation/config"
-	"github.com/vapor/toolbar/federation/database"
-	"github.com/vapor/toolbar/federation/database/orm"
-	"github.com/vapor/toolbar/federation/service"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/toolbar/federation/common"
+	"github.com/bytom/vapor/toolbar/federation/config"
+	"github.com/bytom/vapor/toolbar/federation/database"
+	"github.com/bytom/vapor/toolbar/federation/database/orm"
+	"github.com/bytom/vapor/toolbar/federation/service"
 )
 
 type sidechainKeeper struct {
@@ -26,6 +26,7 @@ type sidechainKeeper struct {
 	node       *service.Node
 	assetStore *database.AssetStore
 	chainID    uint64
+	netParams  consensus.Params
 }
 
 func NewSidechainKeeper(db *gorm.DB, assetStore *database.AssetStore, cfg *config.Config) *sidechainKeeper {
@@ -40,6 +41,7 @@ func NewSidechainKeeper(db *gorm.DB, assetStore *database.AssetStore, cfg *confi
 		node:       service.NewNode(cfg.Sidechain.Upstream),
 		assetStore: assetStore,
 		chainID:    chain.ID,
+		netParams:  consensus.NetParams[cfg.Network],
 	}
 }
 
@@ -61,7 +63,7 @@ func (s *sidechainKeeper) Run() {
 }
 
 func (s *sidechainKeeper) createCrossChainReqs(db *gorm.DB, crossTransactionID uint64, tx *types.Tx, statusFail bool) error {
-	fromAddress := common.ProgToAddress(tx.Inputs[0].ControlProgram(), &consensus.MainNetParams)
+	fromAddress := common.ProgToAddress(tx.Inputs[0].ControlProgram(), &s.netParams)
 	for i, rawOutput := range tx.Outputs {
 		if rawOutput.OutputType() != types.CrossChainOutputType {
 			continue
@@ -76,6 +78,10 @@ func (s *sidechainKeeper) createCrossChainReqs(db *gorm.DB, crossTransactionID u
 			return err
 		}
 
+		if asset.IsOpenFederationIssue {
+			continue
+		}
+
 		prog := rawOutput.ControlProgram()
 		req := &orm.CrossTransactionReq{
 			CrossTransactionID: crossTransactionID,
@@ -84,7 +90,7 @@ func (s *sidechainKeeper) createCrossChainReqs(db *gorm.DB, crossTransactionID u
 			AssetAmount:        rawOutput.OutputCommitment().AssetAmount.Amount,
 			Script:             hex.EncodeToString(prog),
 			FromAddress:        fromAddress,
-			ToAddress:          common.ProgToAddress(prog, &consensus.BytomMainNetParams),
+			ToAddress:          common.ProgToAddress(prog, consensus.BytomMainNetParams(&s.netParams)),
 		}
 
 		if err := db.Create(req).Error; err != nil {
@@ -94,33 +100,49 @@ func (s *sidechainKeeper) createCrossChainReqs(db *gorm.DB, crossTransactionID u
 	return nil
 }
 
-func (s *sidechainKeeper) isDepositTx(tx *types.Tx) bool {
+func (s *sidechainKeeper) isDepositTx(tx *types.Tx) (bool, error) {
 	for _, input := range tx.Inputs {
-		if input.InputType() == types.CrossChainInputType {
-			return true
+		if input.InputType() != types.CrossChainInputType {
+			continue
+		}
+
+		if isOFAsset, err := s.isOpenFederationAsset(input.AssetAmount().AssetId); err != nil {
+			return false, err
+		} else if !isOFAsset {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
-func (s *sidechainKeeper) isWithdrawalTx(tx *types.Tx) bool {
+func (s *sidechainKeeper) isWithdrawalTx(tx *types.Tx) (bool, error) {
 	for _, output := range tx.Outputs {
-		if output.OutputType() == types.CrossChainOutputType {
-			return true
+		if output.OutputType() != types.CrossChainOutputType {
+			continue
+		}
+
+		if isOFAsset, err := s.isOpenFederationAsset(output.AssetAmount().AssetId); err != nil {
+			return false, err
+		} else if !isOFAsset {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (s *sidechainKeeper) processBlock(db *gorm.DB, block *types.Block, txStatus *bc.TransactionStatus) error {
 	for i, tx := range block.Transactions {
-		if s.isDepositTx(tx) {
+		if isDeposit, err := s.isDepositTx(tx); err != nil {
+			return err
+		} else if isDeposit {
 			if err := s.processDepositTx(db, block, i); err != nil {
 				return err
 			}
 		}
 
-		if s.isWithdrawalTx(tx) {
+		if isWithdrawal, err := s.isWithdrawalTx(tx); err != nil {
+			return err
+		} else if isWithdrawal {
 			if err := s.processWithdrawalTx(db, block, txStatus, i); err != nil {
 				return err
 			}
@@ -173,6 +195,15 @@ func (s *sidechainKeeper) processDepositTx(db *gorm.DB, block *types.Block, txIn
 		return errors.Wrap(ErrInconsistentDB, "fail on find deposit data on database")
 	}
 	return nil
+}
+
+func (s *sidechainKeeper) isOpenFederationAsset(assetID *bc.AssetID) (bool, error) {
+	asset, err := s.assetStore.GetByAssetID(assetID.String())
+	if err != nil {
+		return false, err
+	}
+
+	return asset.IsOpenFederationIssue, nil
 }
 
 func (s *sidechainKeeper) processWithdrawalTx(db *gorm.DB, block *types.Block, txStatus *bc.TransactionStatus, txIndex int) error {

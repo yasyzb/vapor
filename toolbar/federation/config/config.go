@@ -6,8 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	vaporJson "github.com/vapor/encoding/json"
-	"github.com/vapor/toolbar/common"
+	vaporJson "github.com/bytom/vapor/encoding/json"
+	"github.com/bytom/vapor/toolbar/common"
 )
 
 func NewConfig() *Config {
@@ -37,6 +37,7 @@ type Config struct {
 	API            API                `json:"api"`
 	MySQLConfig    common.MySQLConfig `json:"mysql"`
 	FederationProg vaporJson.HexBytes `json:"federation_prog"`
+	Network        string             `json:"network"`
 	Mainchain      Chain              `json:"mainchain"`
 	Sidechain      Chain              `json:"sidechain"`
 }

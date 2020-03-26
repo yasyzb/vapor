@@ -3,11 +3,11 @@ package validation
 import (
 	"bytes"
 
-	"github.com/vapor/consensus/segwit"
-	"github.com/vapor/crypto/sha3pool"
-	"github.com/vapor/errors"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/vm"
+	"github.com/bytom/vapor/consensus/segwit"
+	"github.com/bytom/vapor/crypto/sha3pool"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/vm"
 )
 
 // NewTxVMContext generates the vm.Context for BVM
@@ -98,12 +98,17 @@ func NewTxVMContext(vs *validationState, entry bc.Entry, prog *bc.Program, args 
 }
 
 func witnessProgram(prog []byte) []byte {
-	if segwit.IsP2WPKHScript(prog) {
-		if witnessProg, err := segwit.ConvertP2PKHSigProgram([]byte(prog)); err == nil {
+	switch {
+	case segwit.IsP2WPKHScript(prog):
+		if witnessProg, err := segwit.ConvertP2PKHSigProgram(prog); err == nil {
 			return witnessProg
 		}
-	} else if segwit.IsP2WSHScript(prog) {
-		if witnessProg, err := segwit.ConvertP2SHProgram([]byte(prog)); err == nil {
+	case segwit.IsP2WSHScript(prog):
+		if witnessProg, err := segwit.ConvertP2SHProgram(prog); err == nil {
+			return witnessProg
+		}
+	case segwit.IsP2WMCScript(prog):
+		if witnessProg, err := segwit.ConvertP2MCProgram(prog); err == nil {
 			return witnessProg
 		}
 	}

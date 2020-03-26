@@ -5,16 +5,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
-	acc "github.com/vapor/account"
-	"github.com/vapor/asset"
-	"github.com/vapor/blockchain/query"
-	dbm "github.com/vapor/database/leveldb"
-	"github.com/vapor/errors"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/wallet"
+	acc "github.com/bytom/vapor/account"
+	"github.com/bytom/vapor/asset"
+	"github.com/bytom/vapor/blockchain/query"
+	dbm "github.com/bytom/vapor/database/leveldb"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/wallet"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 	recoveryKey //recoveryKey key for db store recovery info.
 )
 
+// pre-define variables
 var (
 	walletStore         = []byte("WS:")
 	SUTXOPrefix         = append(walletStore, sutxoPrefix, colon)
@@ -65,10 +67,12 @@ func calcUnconfirmedTxKey(formatKey string) []byte {
 	return append(UnconfirmedTxPrefix, []byte(formatKey)...)
 }
 
+// CalcGlobalTxIndexKey calculate tx hash index key
 func CalcGlobalTxIndexKey(txID string) []byte {
 	return append(GlobalTxIndexPrefix, []byte(txID)...)
 }
 
+// CalcGlobalTxIndex calcuate the block index + position index key
 func CalcGlobalTxIndex(blockHash *bc.Hash, position uint64) []byte {
 	txIdx := make([]byte, 40)
 	copy(txIdx[:32], blockHash.Bytes())
@@ -108,7 +112,7 @@ func (store *WalletStore) InitBatch() wallet.WalletStore {
 // CommitBatch commit batch
 func (store *WalletStore) CommitBatch() error {
 	if store.batch == nil {
-		return errors.New("WalletStore commit fail, store batch is nil.")
+		return errors.New("walletStore commit fail, store batch is nil")
 	}
 
 	store.batch.Write()
@@ -190,7 +194,7 @@ func (store *WalletStore) DeleteWalletTransactions() {
 	}
 }
 
-// DeleteWalletUTXOs delete all txs in wallet
+// DeleteWalletUTXOs delete all utxos in wallet
 func (store *WalletStore) DeleteWalletUTXOs() {
 	batch := store.db.NewBatch()
 	if store.batch != nil {
@@ -227,7 +231,7 @@ func (store *WalletStore) GetAsset(assetID *bc.AssetID) (*asset.Asset, error) {
 		return nil, err
 	}
 
-	alias := assetID.String()
+	alias := strings.ToUpper(assetID.String())
 	externalAsset := &asset.Asset{
 		AssetID:           *assetID,
 		Alias:             &alias,
@@ -346,6 +350,7 @@ func (store *WalletStore) ListAccountUTXOs(id string, isSmartContract bool) ([]*
 	return confirmedUTXOs, nil
 }
 
+// ListTransactions list tx by filter args
 func (store *WalletStore) ListTransactions(accountID string, StartTxID string, count uint, unconfirmed bool) ([]*query.AnnotatedTx, error) {
 	annotatedTxs := []*query.AnnotatedTx{}
 	var startKey []byte
@@ -381,7 +386,6 @@ func (store *WalletStore) ListTransactions(accountID string, StartTxID string, c
 			annotatedTxs = append([]*query.AnnotatedTx{annotatedTx}, annotatedTxs...)
 			txNum--
 		}
-
 	}
 
 	return annotatedTxs, nil

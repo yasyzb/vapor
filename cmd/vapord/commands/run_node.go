@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/vapor/node"
+	"github.com/bytom/vapor/node"
 )
 
 const logModule = "cmd"
@@ -21,6 +21,7 @@ var runNodeCmd = &cobra.Command{
 func init() {
 	runNodeCmd.Flags().String("prof_laddr", config.ProfListenAddress, "Use http to profile vapord programs")
 	runNodeCmd.Flags().Bool("mining", config.Mining, "Enable mining")
+	runNodeCmd.Flags().String("cross_chain.asset_whitelist", config.CrossChain.AssetWhitelist, "Cross-chain-allowed asset whitelist")
 
 	runNodeCmd.Flags().Bool("auth.disable", config.Auth.Disable, "Disable rpc access authenticate")
 
@@ -32,7 +33,7 @@ func init() {
 	runNodeCmd.Flags().String("chain_id", config.ChainID, "Select network type")
 
 	// log level
-	runNodeCmd.Flags().String("log_level", config.LogLevel, "Select log level(debug, info, warn, error or fatal")
+	runNodeCmd.Flags().String("log_level", config.LogLevel, "Select log level(debug, info, warn, error or fatal)")
 
 	// p2p flags
 	runNodeCmd.Flags().String("p2p.laddr", config.P2P.ListenAddress, "Node listen address. (0.0.0.0:0 means any interface, any port)")

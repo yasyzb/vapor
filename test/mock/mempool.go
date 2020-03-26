@@ -1,8 +1,8 @@
 package mock
 
 import (
-	"github.com/vapor/protocol"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/protocol"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 type Mempool struct {
@@ -21,4 +21,8 @@ func (m *Mempool) AddTx(tx *types.Tx) {
 
 func (m *Mempool) GetTransactions() []*protocol.TxDesc {
 	return m.txs
+}
+
+func (m *Mempool) IsDust(tx *types.Tx) bool {
+	return false
 }

@@ -6,11 +6,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	cmn "github.com/tendermint/tmlibs/common"
 
-	cfg "github.com/vapor/config"
-	dbm "github.com/vapor/database/leveldb"
-	"github.com/vapor/p2p/connection"
-	"github.com/vapor/p2p/discover/dht"
-	"github.com/vapor/p2p/signlib"
+	cfg "github.com/bytom/vapor/config"
+	dbm "github.com/bytom/vapor/database/leveldb"
+	"github.com/bytom/vapor/p2p/connection"
+	"github.com/bytom/vapor/p2p/discover/dht"
+	"github.com/bytom/vapor/p2p/signlib"
 )
 
 //PanicOnAddPeerErr add peer error
@@ -92,7 +92,7 @@ func MakeSwitch(cfg *cfg.Config, testdb dbm.DB, privKey signlib.PrivKey, initSwi
 	// new switch, add reactors
 	l, listenAddr := GetListener(cfg.P2P)
 	cfg.P2P.LANDiscover = false
-	sw, err := newSwitch(cfg, new(mockDiscv), nil, l, privKey, listenAddr, 0)
+	sw, err := NewSwitch(cfg, new(mockDiscv), nil, l, privKey, listenAddr, 0)
 	if err != nil {
 		log.Errorf("create switch error: %s", err)
 		return nil

@@ -8,12 +8,12 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/vapor/account"
-	"github.com/vapor/consensus"
-	dbm "github.com/vapor/database/leveldb"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	"github.com/vapor/testutil"
+	"github.com/bytom/vapor/account"
+	"github.com/bytom/vapor/consensus"
+	dbm "github.com/bytom/vapor/database/leveldb"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/testutil"
 )
 
 func TestGetAccountUtxos(t *testing.T) {
@@ -554,7 +554,7 @@ func TestTxOutToUtxos(t *testing.T) {
 					ControlProgram: []byte{0x51},
 					SourceID:       bc.NewHash([32]byte{0xb4, 0x7e, 0x94, 0x31, 0x88, 0xfe, 0xd3, 0xe9, 0xac, 0x99, 0x7c, 0xfc, 0x99, 0x6d, 0xd7, 0x4d, 0x04, 0x10, 0x77, 0xcb, 0x1c, 0xf8, 0x95, 0x14, 0x00, 0xe3, 0x42, 0x00, 0x8d, 0x05, 0xec, 0xdc}),
 					SourcePos:      0,
-					ValidHeight:    198,
+					ValidHeight:    consensus.MainNetParams.CoinbasePendingBlockNumber + 98,
 				},
 			},
 		},
@@ -745,7 +745,7 @@ func TestTxOutToUtxos(t *testing.T) {
 					ControlProgram: []byte{0x52},
 					SourceID:       bc.Hash{V0: 14680680172533616824, V1: 32429899179491316, V2: 15399988966960786775, V3: 17411722803888206567},
 					SourcePos:      1,
-					ValidHeight:    100,
+					ValidHeight:    consensus.MainNetParams.CoinbasePendingBlockNumber,
 				},
 			},
 		},

@@ -3,18 +3,16 @@ package validation
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 
-	"github.com/vapor/config"
-	"github.com/vapor/consensus"
-	"github.com/vapor/errors"
-	"github.com/vapor/math/checked"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/vm"
-)
-
-const (
-	validateWorkerNum = 32
+	"github.com/bytom/vapor/common"
+	"github.com/bytom/vapor/config"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/math/checked"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/vm"
 )
 
 // validate transaction error
@@ -41,6 +39,7 @@ var (
 	ErrGasCalculate              = errors.New("gas usage calculate got a math error")
 	ErrVotePubKey                = errors.New("invalid public key of vote")
 	ErrVoteOutputAmount          = errors.New("invalid vote amount")
+	ErrVoteOutputAseet           = errors.New("incorrect asset_id while checking vote asset")
 )
 
 // GasState record the gas usage status
@@ -58,10 +57,13 @@ func (g *GasState) setGas(BTMValue int64, txSize int64) error {
 	}
 
 	g.BTMValue = uint64(BTMValue)
-
 	var ok bool
 	if g.GasLeft, ok = checked.DivInt64(BTMValue, consensus.ActiveNetParams.VMGasRate); !ok {
 		return errors.Wrap(ErrGasCalculate, "setGas calc gas amount")
+	}
+
+	if g.GasLeft, ok = checked.AddInt64(g.GasLeft, consensus.ActiveNetParams.DefaultGasCredit); !ok {
+		return errors.Wrap(ErrGasCalculate, "setGas calc free gas")
 	}
 
 	if g.GasLeft > consensus.ActiveNetParams.MaxGasAmount {
@@ -172,14 +174,17 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 			parity[*dest.Value.AssetId] = diff
 		}
 
+		btmAmount := int64(0)
 		for assetID, amount := range parity {
 			if assetID == *consensus.BTMAssetID {
-				if err = vs.gasStatus.setGas(amount, int64(vs.tx.SerializedSize)); err != nil {
-					return err
-				}
+				btmAmount = amount
 			} else if amount != 0 {
 				return errors.WithDetailf(ErrUnbalanced, "asset %x sources - destinations = %d (should be 0)", assetID.Bytes(), amount)
 			}
+		}
+
+		if err = vs.gasStatus.setGas(btmAmount, int64(vs.tx.SerializedSize)); err != nil {
+			return err
 		}
 
 		for _, BTMInputID := range vs.tx.GasInputIDs {
@@ -233,13 +238,19 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 		if len(e.Vote) != 64 {
 			return ErrVotePubKey
 		}
+
 		vs2 := *vs
 		vs2.sourcePos = 0
 		if err = checkValidSrc(&vs2, e.Source); err != nil {
 			return errors.Wrap(err, "checking vote output source")
 		}
+
 		if e.Source.Value.Amount < consensus.ActiveNetParams.MinVoteOutputAmount {
 			return ErrVoteOutputAmount
+		}
+
+		if *e.Source.Value.AssetId != *consensus.BTMAssetID {
+			return ErrVoteOutputAseet
 		}
 
 	case *bc.Retirement:
@@ -265,8 +276,12 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 		}
 
 		prog := &bc.Program{
-			VmVersion: e.ControlProgram.VmVersion,
-			Code:      config.FederationWScript(config.CommonConfig),
+			VmVersion: e.AssetDefinition.IssuanceProgram.VmVersion,
+			Code:      e.AssetDefinition.IssuanceProgram.Code,
+		}
+
+		if !common.IsOpenFederationIssueAsset(e.RawDefinitionByte) {
+			prog.Code = config.FederationWScript(config.CommonConfig)
 		}
 
 		if _, err := vm.Verify(NewTxVMContext(vs, e, prog, e.WitnessArguments), consensus.ActiveNetParams.DefaultGasCredit); err != nil {
@@ -572,6 +587,16 @@ func checkTimeRange(tx *bc.Tx, block *bc.Block) error {
 	return nil
 }
 
+func applySoftFork001(vs *validationState, err error) {
+	if err == nil || vs.block.Height < consensus.ActiveNetParams.SoftForkPoint[consensus.SoftFork001] {
+		return
+	}
+
+	if rootErr := errors.Root(err); rootErr == ErrVotePubKey || rootErr == ErrVoteOutputAmount || rootErr == ErrVoteOutputAseet {
+		vs.gasStatus.GasValid = false
+	}
+}
+
 // ValidateTx validates a transaction.
 func ValidateTx(tx *bc.Tx, block *bc.Block) (*GasState, error) {
 	gasStatus := &GasState{GasValid: false}
@@ -595,7 +620,10 @@ func ValidateTx(tx *bc.Tx, block *bc.Block) (*GasState, error) {
 		gasStatus: gasStatus,
 		cache:     make(map[bc.Hash]error),
 	}
-	return vs.gasStatus, checkValid(vs, tx.TxHeader)
+
+	err := checkValid(vs, tx.TxHeader)
+	applySoftFork001(vs, err)
+	return vs.gasStatus, err
 }
 
 type validateTxWork struct {
@@ -637,6 +665,7 @@ func validateTxWorker(workCh chan *validateTxWork, resultCh chan *ValidateTxResu
 // ValidateTxs validates txs in async mode
 func ValidateTxs(txs []*bc.Tx, block *bc.Block) []*ValidateTxResult {
 	txSize := len(txs)
+	validateWorkerNum := runtime.NumCPU()
 	//init the goroutine validate worker
 	var wg sync.WaitGroup
 	workCh := make(chan *validateTxWork, txSize)

@@ -3,15 +3,11 @@ package protocol
 import (
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/errors"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	"github.com/vapor/protocol/state"
-	"github.com/vapor/protocol/validation"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/protocol/state"
+	"github.com/bytom/vapor/protocol/validation"
 )
-
-// ErrBadTx is returned for transactions failing validation
-var ErrBadTx = errors.New("invalid transaction")
 
 // GetTransactionStatus return the transaction status of give block
 func (c *Chain) GetTransactionStatus(hash *bc.Hash) (*bc.TransactionStatus, error) {
@@ -31,13 +27,16 @@ func (c *Chain) ValidateTx(tx *types.Tx) (bool, error) {
 		return false, nil
 	}
 
-	c.markTransactions(tx)
-
-	return c.validateTx(tx)
+	bh := c.BestBlockHeader()
+	isOrphan, err := c.validateTx(tx, bh)
+	if err == nil {
+		c.markTransactions(tx)
+	}
+	return isOrphan, err
 }
 
 // validateTx validates the given transaction without checking duplication.
-func (c *Chain) validateTx(tx *types.Tx) (bool, error) {
+func (c *Chain) validateTx(tx *types.Tx, bh *types.BlockHeader) (bool, error) {
 	if ok := c.txPool.HaveTransaction(&tx.ID); ok {
 		return false, c.txPool.GetErrCache(&tx.ID)
 	}
@@ -47,11 +46,18 @@ func (c *Chain) validateTx(tx *types.Tx) (bool, error) {
 		return false, ErrDustTx
 	}
 
-	bh := c.BestBlockHeader()
 	gasStatus, err := validation.ValidateTx(tx.Tx, types.MapBlock(&types.Block{BlockHeader: *bh}))
 	if !gasStatus.GasValid {
 		c.txPool.AddErrCache(&tx.ID, err)
 		return false, err
+	}
+
+	txVerifyResult := &bc.TxVerifyResult{StatusFail: err != nil}
+	for _, p := range c.subProtocols {
+		if err := p.ValidateTx(tx, txVerifyResult, bh.Height); err != nil {
+			c.txPool.AddErrCache(&tx.ID, err)
+			return false, err
+		}
 	}
 
 	if err != nil {

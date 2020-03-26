@@ -6,11 +6,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/errors"
-	"github.com/vapor/netsync/peers"
-	"github.com/vapor/p2p/security"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/netsync/peers"
+	"github.com/bytom/vapor/p2p/security"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 const (
@@ -22,9 +22,10 @@ const (
 )
 
 var (
-	requireBlockTimeout   = 20 * time.Second
-	requireHeadersTimeout = 30 * time.Second
-	requireBlocksTimeout  = 50 * time.Second
+	requireBlockTimeout      = 20 * time.Second
+	requireHeadersTimeout    = 30 * time.Second
+	requireBlocksTimeout     = 90 * time.Second
+	checkSyncPeerNumInterval = 5 * time.Second
 
 	errRequestBlocksTimeout = errors.New("request blocks timeout")
 	errRequestTimeout       = errors.New("request timeout")
@@ -32,6 +33,7 @@ var (
 	errSendMsg              = errors.New("send message error")
 )
 
+// MsgFetcher is the interface for msg fetch struct
 type MsgFetcher interface {
 	resetParameter()
 	addSyncPeer(peerID string)
@@ -50,7 +52,7 @@ type fetchBlocksResult struct {
 }
 
 type msgFetcher struct {
-	storage          Storage
+	storage          *storage
 	syncPeers        *fastSyncPeers
 	peers            *peers.PeerSet
 	blockProcessCh   chan *blockMsg
@@ -60,7 +62,7 @@ type msgFetcher struct {
 	mux              sync.RWMutex
 }
 
-func newMsgFetcher(storage Storage, peers *peers.PeerSet) *msgFetcher {
+func newMsgFetcher(storage *storage, peers *peers.PeerSet) *msgFetcher {
 	return &msgFetcher{
 		storage:          storage,
 		syncPeers:        newFastSyncPeers(),
@@ -78,10 +80,14 @@ func (mf *msgFetcher) addSyncPeer(peerID string) {
 
 func (mf *msgFetcher) collectResultLoop(peerCh chan string, quit chan struct{}, resultCh chan *fetchBlocksResult, workerCloseCh chan struct{}, workSize int) {
 	defer close(workerCloseCh)
+	ticker := time.NewTicker(checkSyncPeerNumInterval)
+	defer ticker.Stop()
+
 	//collect fetch results
-	for resultCount := 0; resultCount < workSize && mf.syncPeers.size() > 0; resultCount++ {
+	for resultCount := 0; resultCount < workSize && mf.syncPeers.size() > 0; {
 		select {
 		case result := <-resultCh:
+			resultCount++
 			if result.err != nil {
 				log.WithFields(log.Fields{"module": logModule, "startHeight": result.startHeight, "stopHeight": result.stopHeight, "err": result.err}).Error("failed on fetch blocks")
 				return
@@ -93,6 +99,11 @@ func (mf *msgFetcher) collectResultLoop(peerCh chan string, quit chan struct{}, 
 				break
 			}
 			peerCh <- peer
+		case <-ticker.C:
+			if mf.syncPeers.size() == 0 {
+				log.WithFields(log.Fields{"module": logModule}).Warn("num of fast sync peer is 0")
+				return
+			}
 		case _, ok := <-quit:
 			if !ok {
 				return
@@ -107,11 +118,13 @@ func (mf *msgFetcher) fetchBlocks(work *fetchBlocksWork, peerID string) ([]*type
 	stopHash := work.stopHeader.Hash()
 	blocks, err := mf.requireBlocks(peerID, []*bc.Hash{&startHash}, &stopHash)
 	if err != nil {
+		mf.syncPeers.delete(peerID)
 		mf.peers.ProcessIllegal(peerID, security.LevelConnException, err.Error())
 		return nil, err
 	}
 
 	if err := mf.verifyBlocksMsg(blocks, work.startHeader, work.stopHeader); err != nil {
+		mf.syncPeers.delete(peerID)
 		mf.peers.ProcessIllegal(peerID, security.LevelConnException, err.Error())
 		return nil, err
 	}

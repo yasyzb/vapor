@@ -5,12 +5,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/consensus"
-	"github.com/vapor/crypto"
-	"github.com/vapor/crypto/ed25519/chainkd"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	"github.com/vapor/protocol/vm/vmutil"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/crypto"
+	"github.com/bytom/vapor/crypto/ed25519/chainkd"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/protocol/vm/vmutil"
 )
 
 // FedAddressPath is used to derive federation root xpubs for signing cross-chain txs
@@ -84,7 +84,7 @@ func mainNetGenesisBlock() *types.Block {
 		BlockHeader: types.BlockHeader{
 			Version:   1,
 			Height:    0,
-			Timestamp: 1562840600003,
+			Timestamp: 1563344560002,
 			BlockCommitment: types.BlockCommitment{
 				TransactionsMerkleRoot: merkleRoot,
 				TransactionStatusHash:  txStatusHash,
@@ -115,7 +115,7 @@ func testNetGenesisBlock() *types.Block {
 		BlockHeader: types.BlockHeader{
 			Version:   1,
 			Height:    0,
-			Timestamp: 1562840600001,
+			Timestamp: 1563344560001,
 			BlockCommitment: types.BlockCommitment{
 				TransactionsMerkleRoot: merkleRoot,
 				TransactionStatusHash:  txStatusHash,
@@ -146,7 +146,7 @@ func soloNetGenesisBlock() *types.Block {
 		BlockHeader: types.BlockHeader{
 			Version:   1,
 			Height:    0,
-			Timestamp: 1562840600000,
+			Timestamp: 1563344560000,
 			BlockCommitment: types.BlockCommitment{
 				TransactionsMerkleRoot: merkleRoot,
 				TransactionStatusHash:  txStatusHash,

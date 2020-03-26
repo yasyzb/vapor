@@ -4,14 +4,14 @@ import (
 	"encoding/hex"
 	"sort"
 
-	"github.com/vapor/common/arithmetic"
-	"github.com/vapor/config"
-	"github.com/vapor/consensus"
-	"github.com/vapor/crypto/ed25519/chainkd"
-	"github.com/vapor/errors"
-	"github.com/vapor/math/checked"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/common/arithmetic"
+	"github.com/bytom/vapor/config"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/crypto/ed25519/chainkd"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/math/checked"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 // fedConsensusPath is used to derive federation root xpubs for signing blocks
@@ -109,39 +109,47 @@ func (c *ConsensusResult) ApplyBlock(block *types.Block) error {
 	}
 
 	for _, tx := range block.Transactions {
-		for _, input := range tx.Inputs {
-			vetoInput, ok := input.TypedInput.(*types.VetoInput)
-			if !ok {
-				continue
-			}
-
-			pubkey := hex.EncodeToString(vetoInput.Vote)
-			c.NumOfVote[pubkey], ok = checked.SubUint64(c.NumOfVote[pubkey], vetoInput.Amount)
-			if !ok {
-				return checked.ErrOverflow
-			}
-
-			if c.NumOfVote[pubkey] == 0 {
-				delete(c.NumOfVote, pubkey)
-			}
-		}
-
-		for _, output := range tx.Outputs {
-			voteOutput, ok := output.TypedOutput.(*types.VoteOutput)
-			if !ok {
-				continue
-			}
-
-			pubkey := hex.EncodeToString(voteOutput.Vote)
-			if c.NumOfVote[pubkey], ok = checked.AddUint64(c.NumOfVote[pubkey], voteOutput.Amount); !ok {
-				return checked.ErrOverflow
-			}
+		if err := c.ApplyTransaction(tx); err != nil {
+			return err
 		}
 	}
 
 	c.BlockHash = block.Hash()
 	c.BlockHeight = block.Height
 	c.Seq = CalcVoteSeq(block.Height)
+	return nil
+}
+
+// ApplyTransaction calculate the consensus result for transaction
+func (c *ConsensusResult) ApplyTransaction(tx *types.Tx) error {
+	for _, input := range tx.Inputs {
+		vetoInput, ok := input.TypedInput.(*types.VetoInput)
+		if !ok {
+			continue
+		}
+
+		pubkey := hex.EncodeToString(vetoInput.Vote)
+		c.NumOfVote[pubkey], ok = checked.SubUint64(c.NumOfVote[pubkey], vetoInput.Amount)
+		if !ok {
+			return checked.ErrOverflow
+		}
+
+		if c.NumOfVote[pubkey] == 0 {
+			delete(c.NumOfVote, pubkey)
+		}
+	}
+
+	for _, output := range tx.Outputs {
+		voteOutput, ok := output.TypedOutput.(*types.VoteOutput)
+		if !ok {
+			continue
+		}
+
+		pubkey := hex.EncodeToString(voteOutput.Vote)
+		if c.NumOfVote[pubkey], ok = checked.AddUint64(c.NumOfVote[pubkey], voteOutput.Amount); !ok {
+			return checked.ErrOverflow
+		}
+	}
 	return nil
 }
 
@@ -243,16 +251,6 @@ func (c *ConsensusResult) DetachBlock(block *types.Block) error {
 
 // DetachCoinbaseReward detach coinbase reward
 func (c *ConsensusResult) DetachCoinbaseReward(block *types.Block) error {
-	if block.Height%consensus.ActiveNetParams.RoundVoteBlockNums == 0 {
-		for i, output := range block.Transactions[0].Outputs {
-			if i == 0 {
-				continue
-			}
-			program := output.ControlProgram()
-			c.CoinbaseReward[hex.EncodeToString(program)] = output.AssetAmount().Amount
-		}
-	}
-
 	reward, err := CalCoinbaseReward(block)
 	if err != nil {
 		return err
@@ -266,6 +264,17 @@ func (c *ConsensusResult) DetachCoinbaseReward(block *types.Block) error {
 
 	if c.CoinbaseReward[program] == 0 {
 		delete(c.CoinbaseReward, program)
+	}
+
+	if block.Height%consensus.ActiveNetParams.RoundVoteBlockNums == 1 {
+		c.CoinbaseReward = map[string]uint64{}
+		for i, output := range block.Transactions[0].Outputs {
+			if i == 0 {
+				continue
+			}
+			program := output.ControlProgram()
+			c.CoinbaseReward[hex.EncodeToString(program)] = output.AssetAmount().Amount
+		}
 	}
 	return nil
 }

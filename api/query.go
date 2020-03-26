@@ -7,18 +7,18 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/account"
-	"github.com/vapor/asset"
-	"github.com/vapor/blockchain/query"
-	"github.com/vapor/blockchain/signers"
-	"github.com/vapor/common/arithmetic"
-	"github.com/vapor/consensus"
-	"github.com/vapor/crypto/ed25519"
-	"github.com/vapor/crypto/ed25519/chainkd"
-	chainjson "github.com/vapor/encoding/json"
-	"github.com/vapor/errors"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/account"
+	"github.com/bytom/vapor/asset"
+	"github.com/bytom/vapor/blockchain/query"
+	"github.com/bytom/vapor/blockchain/signers"
+	"github.com/bytom/vapor/common/arithmetic"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/crypto/ed25519"
+	"github.com/bytom/vapor/crypto/ed25519/chainkd"
+	chainjson "github.com/bytom/vapor/encoding/json"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 // POST /list-accounts
@@ -283,8 +283,7 @@ func (a *API) decodeRawTransaction(ctx context.Context, ins struct {
 	return NewSuccessResponse(tx)
 }
 
-// POST /list-unspent-outputs
-func (a *API) listUnspentOutputs(ctx context.Context, filter struct {
+type ListUtxosReq struct {
 	AccountID     string `json:"account_id"`
 	AccountAlias  string `json:"account_alias"`
 	ID            string `json:"id"`
@@ -292,7 +291,10 @@ func (a *API) listUnspentOutputs(ctx context.Context, filter struct {
 	SmartContract bool   `json:"smart_contract"`
 	From          uint   `json:"from"`
 	Count         uint   `json:"count"`
-}) Response {
+}
+
+// POST /list-unspent-outputs
+func (a *API) listUnspentOutputs(ctx context.Context, filter ListUtxosReq) Response {
 	accountID := filter.AccountID
 	if filter.AccountAlias != "" {
 		acc, err := a.wallet.AccountMgr.FindByAlias(filter.AccountAlias)

@@ -1,5 +1,5 @@
 language: go
-go_import_path: github.com/vapor
+go_import_path: github.com/bytom/vapor
 dist: trusty
 sudo: false
 
@@ -11,7 +11,7 @@ branches:
     only:
         - master
         - dev
-        - v0.1
+        - mov
 
 script:
     - make ci

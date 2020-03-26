@@ -9,13 +9,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 
-	dbm "github.com/vapor/database/leveldb"
-	"github.com/vapor/database/storage"
-	"github.com/vapor/errors"
-	"github.com/vapor/protocol"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	"github.com/vapor/protocol/state"
+	dbm "github.com/bytom/vapor/database/leveldb"
+	"github.com/bytom/vapor/database/storage"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/protocol"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/protocol/state"
 )
 
 const (
@@ -53,7 +53,7 @@ func loadBlockStoreStateJSON(db dbm.DB) *protocol.BlockStoreState {
 // methods for querying current data.
 type Store struct {
 	db    dbm.DB
-	cache cache
+	cache *cache
 }
 
 func calcMainChainIndexPrefix(height uint64) []byte {
@@ -154,6 +154,56 @@ func GetConsensusResult(db dbm.DB, seq uint64) (*state.ConsensusResult, error) {
 		return nil, errors.Wrap(err, "unmarshaling vote result")
 	}
 	return consensusResult, nil
+}
+
+// DeleteConsensusResult delete a consensusResult from cache and database
+func (s *Store) DeleteConsensusResult(seq uint64) error {
+	consensusResult, err := GetConsensusResult(s.db, seq)
+	if err != nil {
+		return err
+	}
+
+	s.db.Delete(calcConsensusResultKey(seq))
+	s.cache.removeConsensusResult(consensusResult)
+	return nil
+}
+
+// DeleteBlock delete a new block in the protocol.
+func (s *Store) DeleteBlock(block *types.Block) error {
+	blockHash := block.Hash()
+	blockHashes, err := s.GetBlockHashesByHeight(block.Height)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(blockHashes); i++ {
+		if blockHashes[i].String() == blockHash.String() {
+			blockHashes = append(blockHashes[0:i], blockHashes[i+1:len(blockHashes)]...)
+			break
+		}
+	}
+
+	batch := s.db.NewBatch()
+	if len(blockHashes) == 0 {
+		batch.Delete(calcBlockHashesPrefix(block.Height))
+	} else {
+		binaryBlockHashes, err := json.Marshal(blockHashes)
+		if err != nil {
+			return errors.Wrap(err, "Marshal block hashes")
+		}
+
+		batch.Set(calcBlockHashesPrefix(block.Height), binaryBlockHashes)
+	}
+
+	batch.Delete(calcBlockHeaderKey(&blockHash))
+	batch.Delete(calcBlockTransactionsKey(&blockHash))
+	batch.Delete(calcTxStatusKey(&blockHash))
+	batch.Write()
+
+	s.cache.removeBlockHashes(block.Height)
+	s.cache.removeBlockHeader(&block.BlockHeader)
+
+	return nil
 }
 
 // NewStore creates and returns a new Store object.
@@ -325,19 +375,24 @@ func (s *Store) SaveBlockHeader(blockHeader *types.BlockHeader) error {
 
 // SaveChainStatus save the core's newest status && delete old status
 func (s *Store) SaveChainStatus(blockHeader, irrBlockHeader *types.BlockHeader, mainBlockHeaders []*types.BlockHeader, view *state.UtxoViewpoint, consensusResults []*state.ConsensusResult) error {
+	currentStatus := loadBlockStoreStateJSON(s.db)
 	batch := s.db.NewBatch()
 	if err := saveUtxoView(batch, view); err != nil {
 		return err
 	}
 
-	for _, result := range consensusResults {
+	var clearCacheFuncs []func()
+	for _, consensusResult := range consensusResults {
+		result := consensusResult
 		bytes, err := json.Marshal(result)
 		if err != nil {
 			return err
 		}
 
 		batch.Set(calcConsensusResultKey(result.Seq), bytes)
-		s.cache.removeConsensusResult(result)
+		clearCacheFuncs = append(clearCacheFuncs, func() {
+			s.cache.removeConsensusResult(result)
+		})
 	}
 
 	blockHash := blockHeader.Hash()
@@ -354,7 +409,8 @@ func (s *Store) SaveChainStatus(blockHeader, irrBlockHeader *types.BlockHeader, 
 	batch.Set([]byte{blockStore}, bytes)
 
 	// save main chain blockHeaders
-	for _, bh := range mainBlockHeaders {
+	for _, blockHeader := range mainBlockHeaders {
+		bh := blockHeader
 		blockHash := bh.Hash()
 		binaryBlockHash, err := blockHash.MarshalText()
 		if err != nil {
@@ -362,8 +418,24 @@ func (s *Store) SaveChainStatus(blockHeader, irrBlockHeader *types.BlockHeader, 
 		}
 
 		batch.Set(calcMainChainIndexPrefix(bh.Height), binaryBlockHash)
-		s.cache.removeMainChainHash(bh.Height)
+		clearCacheFuncs = append(clearCacheFuncs, func() {
+			s.cache.removeMainChainHash(bh.Height)
+		})
+	}
+
+	if currentStatus != nil {
+		for i := blockHeader.Height + 1; i <= currentStatus.Height; i++ {
+			index := i
+			batch.Delete(calcMainChainIndexPrefix(index))
+			clearCacheFuncs = append(clearCacheFuncs, func() {
+				s.cache.removeMainChainHash(index)
+			})
+		}
 	}
 	batch.Write()
+
+	for _, clearCacheFunc := range clearCacheFuncs {
+		clearCacheFunc()
+	}
 	return nil
 }

@@ -13,10 +13,10 @@ import (
 	cmn "github.com/tendermint/tmlibs/common"
 	"github.com/tendermint/tmlibs/flowrate"
 
-	cfg "github.com/vapor/config"
-	"github.com/vapor/consensus"
-	"github.com/vapor/p2p/connection"
-	"github.com/vapor/p2p/signlib"
+	cfg "github.com/bytom/vapor/config"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/p2p/connection"
+	"github.com/bytom/vapor/p2p/signlib"
 )
 
 // peerConn contains the raw connection and its config.
@@ -194,6 +194,11 @@ func (p *Peer) IsLAN() bool {
 	return p.isLAN
 }
 
+// Moniker returns peer's moniker.
+func (p *Peer) Moniker() string {
+	return p.NodeInfo.Moniker
+}
+
 // PubKey returns peer's public key.
 func (p *Peer) PubKey() string {
 	return p.conn.(*connection.SecretConnection).RemotePubKey().String()
@@ -239,7 +244,7 @@ func (p *Peer) TrySend(chID byte, msg interface{}) bool {
 		"peer":   p.Addr(),
 		"msg":    msg,
 		"type":   reflect.TypeOf(msg),
-	}).Info("send message to peer")
+	}).Debug("send message to peer")
 	return p.mconn.TrySend(chID, msg)
 }
 

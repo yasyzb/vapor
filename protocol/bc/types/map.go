@@ -4,10 +4,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/vapor/consensus"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/vm"
-	"github.com/vapor/protocol/vm/vmutil"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/vm"
+	"github.com/bytom/vapor/protocol/vm/vmutil"
 )
 
 // MapTx converts a types TxData object into its entries-based
@@ -163,7 +163,7 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 				},
 			}
 
-			crossIn := bc.NewCrossChainInput(&mainchainOutputID, prog, uint64(i), assetDef)
+			crossIn := bc.NewCrossChainInput(&mainchainOutputID, prog, uint64(i), assetDef, inp.AssetDefinition)
 			crossIn.WitnessArguments = inp.Arguments
 			crossInID := addEntry(crossIn)
 			muxSources[i] = &bc.ValueSource{

@@ -6,13 +6,13 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/vapor/consensus"
-	"github.com/vapor/database/storage"
-	"github.com/vapor/event"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	"github.com/vapor/protocol/state"
-	"github.com/vapor/testutil"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/database/storage"
+	"github.com/bytom/vapor/event"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/protocol/state"
+	"github.com/bytom/vapor/testutil"
 )
 
 var testTxs = []*types.Tx{
@@ -118,10 +118,12 @@ func (s *mockStore) GetStoreStatus() *BlockStoreState                           
 func (s *mockStore) GetTransactionStatus(*bc.Hash) (*bc.TransactionStatus, error) { return nil, nil }
 func (s *mockStore) GetTransactionsUtxo(*state.UtxoViewpoint, []*bc.Tx) error     { return nil }
 func (s *mockStore) GetUtxo(*bc.Hash) (*storage.UtxoEntry, error)                 { return nil, nil }
-func (s *mockStore) GetConsensusResult(uint64) (*state.ConsensusResult, error)              { return nil, nil }
+func (s *mockStore) GetConsensusResult(uint64) (*state.ConsensusResult, error)    { return nil, nil }
 func (s *mockStore) GetMainChainHash(uint64) (*bc.Hash, error)                    { return nil, nil }
 func (s *mockStore) GetBlockHashesByHeight(uint64) ([]*bc.Hash, error)            { return nil, nil }
 func (s *mockStore) SaveBlock(*types.Block, *bc.TransactionStatus) error          { return nil }
+func (s *mockStore) DeleteConsensusResult(seq uint64) error                       { return nil }
+func (s *mockStore) DeleteBlock(*types.Block) error                               { return nil }
 func (s *mockStore) SaveBlockHeader(*types.BlockHeader) error                     { return nil }
 func (s *mockStore) SaveChainStatus(*types.BlockHeader, *types.BlockHeader, []*types.BlockHeader, *state.UtxoViewpoint, []*state.ConsensusResult) error {
 	return nil
@@ -422,7 +424,7 @@ func TestExpireOrphan(t *testing.T) {
 		},
 	}
 
-	before.ExpireOrphan(time.Unix(1633479701, 0))
+	before.expireOrphan(time.Unix(1633479701, 0))
 	if !testutil.DeepEqual(before, want) {
 		t.Errorf("got %v want %v", before, want)
 	}
@@ -668,12 +670,14 @@ func (s *mockStore1) GetTransactionsUtxo(utxoView *state.UtxoViewpoint, tx []*bc
 	}
 	return nil
 }
-func (s *mockStore1) GetUtxo(*bc.Hash) (*storage.UtxoEntry, error)        { return nil, nil }
-func (s *mockStore1) GetConsensusResult(uint64) (*state.ConsensusResult, error)     { return nil, nil }
-func (s *mockStore1) GetMainChainHash(uint64) (*bc.Hash, error)           { return nil, nil }
-func (s *mockStore1) GetBlockHashesByHeight(uint64) ([]*bc.Hash, error)   { return nil, nil }
-func (s *mockStore1) SaveBlock(*types.Block, *bc.TransactionStatus) error { return nil }
-func (s *mockStore1) SaveBlockHeader(*types.BlockHeader) error            { return nil }
+func (s *mockStore1) GetUtxo(*bc.Hash) (*storage.UtxoEntry, error)              { return nil, nil }
+func (s *mockStore1) GetConsensusResult(uint64) (*state.ConsensusResult, error) { return nil, nil }
+func (s *mockStore1) GetMainChainHash(uint64) (*bc.Hash, error)                 { return nil, nil }
+func (s *mockStore1) GetBlockHashesByHeight(uint64) ([]*bc.Hash, error)         { return nil, nil }
+func (s *mockStore1) DeleteBlock(*types.Block) error                            { return nil }
+func (s *mockStore1) SaveBlock(*types.Block, *bc.TransactionStatus) error       { return nil }
+func (s *mockStore1) DeleteConsensusResult(seq uint64) error                    { return nil }
+func (s *mockStore1) SaveBlockHeader(*types.BlockHeader) error                  { return nil }
 func (s *mockStore1) SaveChainStatus(*types.BlockHeader, *types.BlockHeader, []*types.BlockHeader, *state.UtxoViewpoint, []*state.ConsensusResult) error {
 	return nil
 }
@@ -691,22 +695,6 @@ func TestProcessTransaction(t *testing.T) {
 		want  *TxPool
 		addTx *TxDesc
 	}{
-		//Dust tx
-		{
-			want: &TxPool{},
-			addTx: &TxDesc{
-				Tx:         testTxs[3],
-				StatusFail: false,
-			},
-		},
-		//Dust tx
-		{
-			want: &TxPool{},
-			addTx: &TxDesc{
-				Tx:         testTxs[4],
-				StatusFail: false,
-			},
-		},
 		//Dust tx
 		{
 			want: &TxPool{},

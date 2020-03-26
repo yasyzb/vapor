@@ -7,10 +7,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/event"
-	"github.com/vapor/protocol"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/event"
+	"github.com/bytom/vapor/protocol"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 // Notification types
@@ -445,7 +445,12 @@ out:
 		}
 
 		if m.status.BestHash != block.PreviousBlockHash {
-			log.WithFields(log.Fields{"module": logModule, "blockHeight": block.Height, "previousBlockHash": m.status.BestHash, "rcvBlockPrevHash": block.PreviousBlockHash}).Warning("The previousBlockHash of the received block is not the same as the hash of the previous block")
+			log.WithFields(log.Fields{
+				"module":                 logModule,
+				"block_height":           block.Height,
+				"status_block_hash":      m.status.BestHash.String(),
+				"retrive_block_PrevHash": block.PreviousBlockHash.String(),
+			}).Warning("The previousBlockHash of the received block is not the same as the hash of the previous block")
 			continue
 		}
 

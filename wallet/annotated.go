@@ -5,15 +5,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/account"
-	"github.com/vapor/asset"
-	"github.com/vapor/blockchain/query"
-	"github.com/vapor/common"
-	"github.com/vapor/consensus"
-	"github.com/vapor/consensus/segwit"
-	"github.com/vapor/crypto/sha3pool"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/account"
+	"github.com/bytom/vapor/asset"
+	"github.com/bytom/vapor/blockchain/query"
+	"github.com/bytom/vapor/common"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/consensus/segwit"
+	"github.com/bytom/vapor/crypto/sha3pool"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 // annotateTxs adds asset data to transactions
@@ -192,7 +192,7 @@ func (w *Wallet) BuildAnnotatedInput(tx *types.Tx, i uint32) *query.AnnotatedInp
 func (w *Wallet) getAddressFromControlProgram(prog []byte, isMainchain bool) string {
 	netParams := &consensus.ActiveNetParams
 	if isMainchain {
-		netParams = &consensus.BytomMainNetParams
+		netParams = consensus.BytomMainNetParams(&consensus.ActiveNetParams)
 	}
 
 	if segwit.IsP2WPKHScript(prog) {

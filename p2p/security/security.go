@@ -3,10 +3,10 @@ package security
 import (
 	log "github.com/sirupsen/logrus"
 
-	cfg "github.com/vapor/config"
+	cfg "github.com/bytom/vapor/config"
 )
 
-const logModule = "p2p/security"
+const logModule = "p2pSecurity"
 
 type Security struct {
 	filter        *PeerFilter

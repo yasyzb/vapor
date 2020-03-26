@@ -2,8 +2,9 @@ package consensus
 
 import (
 	"encoding/binary"
+	"fmt"
 
-	"github.com/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc"
 )
 
 // basic constant
@@ -12,6 +13,9 @@ const (
 
 	PayToWitnessPubKeyHashDataSize = 20
 	PayToWitnessScriptHashDataSize = 32
+
+	_ = iota
+	SoftFork001
 )
 
 // BTMAssetID is BTM's asset id, the soul asset of Bytom
@@ -71,6 +75,13 @@ type ProducerSubsidy struct {
 	Subsidy    uint64
 }
 
+// MovRewardProgram is a reward address corresponding to the range of the specified block height when matching transactions
+type MovRewardProgram struct {
+	BeginBlock uint64
+	EndBlock   uint64
+	Program    string
+}
+
 // Params store the config for different network
 type Params struct {
 	// Name defines a human-readable identifier for the network.
@@ -97,21 +108,14 @@ type Params struct {
 
 	// ProducerSubsidys defines the producer subsidy by block height
 	ProducerSubsidys []ProducerSubsidy
-}
 
-// VaporDPOSConfig return the dpos consensus config
-func VaporDPOSConfig() DPOSConfig {
-	dpos := DPOSConfig{
-		NumOfConsensusNode:      10,
-		BlockNumEachNode:        12,
-		MinConsensusNodeVoteNum: uint64(100000000000000),
-		MinVoteOutputAmount:     uint64(100000000),
-		BlockTimeInterval:       500,
-	}
+	SoftForkPoint map[uint64]uint64
 
-	dpos.RoundVoteBlockNums = uint64(uint64(dpos.NumOfConsensusNode) * dpos.BlockNumEachNode * 10)
-	dpos.MaxTimeOffsetMs = uint64(uint64(dpos.BlockTimeInterval) * dpos.BlockNumEachNode / 3)
-	return dpos
+	// Mov will only start when the block height is greater than this value
+	MovStartHeight uint64
+
+	// Used to receive rewards for matching transactions
+	MovRewardPrograms []MovRewardProgram
 }
 
 // ActiveNetParams is the active NetParams
@@ -132,18 +136,35 @@ var MainNetParams = Params{
 	DNSSeeds:        []string{"www.mainnetseed.vapor.io"},
 	BasicConfig: BasicConfig{
 		MaxBlockGas:                uint64(10000000),
-		MaxGasAmount:               int64(200000),
+		MaxGasAmount:               int64(640000),
 		DefaultGasCredit:           int64(160000),
 		StorageGasRate:             int64(1),
 		VMGasRate:                  int64(200),
-		VotePendingBlockNumber:     uint64(10000),
-		CoinbasePendingBlockNumber: uint64(100),
+		VotePendingBlockNumber:     uint64(3456000),
+		CoinbasePendingBlockNumber: uint64(7200),
 		CoinbaseArbitrarySizeLimit: 128,
 	},
-	DPOSConfig:  VaporDPOSConfig(),
+	DPOSConfig: DPOSConfig{
+		NumOfConsensusNode:      10,
+		BlockNumEachNode:        12,
+		MinConsensusNodeVoteNum: uint64(100000000000000),
+		MinVoteOutputAmount:     uint64(100000000),
+		BlockTimeInterval:       500,
+		RoundVoteBlockNums:      1200,
+		MaxTimeOffsetMs:         2000,
+	},
 	Checkpoints: []Checkpoint{},
 	ProducerSubsidys: []ProducerSubsidy{
-		{BeginBlock: 1, EndBlock: 63072000, Subsidy: 15000000},
+		{BeginBlock: 1, EndBlock: 63072000, Subsidy: 9512938},
+	},
+	SoftForkPoint:  map[uint64]uint64{SoftFork001: 10461600},
+	MovStartHeight: 42884800,
+	MovRewardPrograms: []MovRewardProgram{
+		{
+			BeginBlock: 1,
+			EndBlock:   126144000,
+			Program:    "00141d00f85e220e35a23282cfc7f91fe7b34bf6dc18",
+		},
 	},
 }
 
@@ -155,15 +176,23 @@ var TestNetParams = Params{
 	DNSSeeds:        []string{"www.testnetseed.vapor.io"},
 	BasicConfig: BasicConfig{
 		MaxBlockGas:                uint64(10000000),
-		MaxGasAmount:               int64(200000),
+		MaxGasAmount:               int64(640000),
 		DefaultGasCredit:           int64(160000),
 		StorageGasRate:             int64(1),
 		VMGasRate:                  int64(200),
-		VotePendingBlockNumber:     uint64(10000),
-		CoinbasePendingBlockNumber: uint64(100),
+		VotePendingBlockNumber:     uint64(3456000),
+		CoinbasePendingBlockNumber: uint64(7200),
 		CoinbaseArbitrarySizeLimit: 128,
 	},
-	DPOSConfig:  VaporDPOSConfig(),
+	DPOSConfig: DPOSConfig{
+		NumOfConsensusNode:      10,
+		BlockNumEachNode:        12,
+		MinConsensusNodeVoteNum: uint64(100000000000000),
+		MinVoteOutputAmount:     uint64(100000000),
+		BlockTimeInterval:       500,
+		RoundVoteBlockNums:      1200,
+		MaxTimeOffsetMs:         2000,
+	},
 	Checkpoints: []Checkpoint{},
 	ProducerSubsidys: []ProducerSubsidy{
 		{BeginBlock: 1, EndBlock: 63072000, Subsidy: 15000000},
@@ -182,10 +211,18 @@ var SoloNetParams = Params{
 		StorageGasRate:             int64(1),
 		VMGasRate:                  int64(200),
 		VotePendingBlockNumber:     uint64(10000),
-		CoinbasePendingBlockNumber: uint64(100),
+		CoinbasePendingBlockNumber: uint64(1200),
 		CoinbaseArbitrarySizeLimit: 128,
 	},
-	DPOSConfig:  VaporDPOSConfig(),
+	DPOSConfig: DPOSConfig{
+		NumOfConsensusNode:      10,
+		BlockNumEachNode:        12,
+		MinConsensusNodeVoteNum: uint64(100000000000000),
+		MinVoteOutputAmount:     uint64(100000000),
+		BlockTimeInterval:       500,
+		RoundVoteBlockNums:      1200,
+		MaxTimeOffsetMs:         2000,
+	},
 	Checkpoints: []Checkpoint{},
 	ProducerSubsidys: []ProducerSubsidy{
 		{BeginBlock: 0, EndBlock: 0, Subsidy: 24},
@@ -206,7 +243,22 @@ func BlockSubsidy(height uint64) uint64 {
 }
 
 // BytomMainNetParams is the config for bytom mainnet
-var BytomMainNetParams = Params{
-	Name:            "main",
-	Bech32HRPSegwit: "bm",
+func BytomMainNetParams(vaporParam *Params) *Params {
+	bech32HRPSegwit := "sm"
+	switch vaporParam.Name {
+	case "main":
+		bech32HRPSegwit = "bm"
+	case "test":
+		bech32HRPSegwit = "tm"
+	}
+	return &Params{Bech32HRPSegwit: bech32HRPSegwit}
+}
+
+// InitActiveNetParams load the config by chain ID
+func InitActiveNetParams(chainID string) error {
+	var exist bool
+	if ActiveNetParams, exist = NetParams[chainID]; !exist {
+		return fmt.Errorf("chain_id[%v] don't exist", chainID)
+	}
+	return nil
 }

@@ -5,12 +5,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/vapor/event"
-	"github.com/vapor/netsync/peers"
-	"github.com/vapor/p2p"
-	"github.com/vapor/p2p/security"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/event"
+	"github.com/bytom/vapor/netsync/peers"
+	"github.com/bytom/vapor/p2p"
+	"github.com/bytom/vapor/p2p/security"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 // Switch is the interface for p2p switch.
@@ -26,6 +26,17 @@ type Chain interface {
 	ProcessBlockSignature(signature, pubkey []byte, blockHash *bc.Hash) error
 }
 
+type Peers interface {
+	AddPeer(peer peers.BasePeer)
+	BroadcastMsg(bm peers.BroadcastMsg) error
+	GetPeer(id string) *peers.Peer
+	MarkBlock(peerID string, hash *bc.Hash)
+	MarkBlockSignature(peerID string, signature []byte)
+	ProcessIllegal(peerID string, level byte, reason string)
+	RemovePeer(peerID string)
+	SetStatus(peerID string, height uint64, hash *bc.Hash)
+}
+
 type blockMsg struct {
 	block  *types.Block
 	peerID string
@@ -35,7 +46,7 @@ type blockMsg struct {
 type Manager struct {
 	sw              Switch
 	chain           Chain
-	peers           *peers.PeerSet
+	peers           Peers
 	blockFetcher    *blockFetcher
 	eventDispatcher *event.Dispatcher
 
@@ -43,7 +54,7 @@ type Manager struct {
 }
 
 // NewManager create new manager.
-func NewManager(sw Switch, chain Chain, dispatcher *event.Dispatcher, peers *peers.PeerSet) *Manager {
+func NewManager(sw Switch, chain Chain, peers Peers, dispatcher *event.Dispatcher) *Manager {
 	manager := &Manager{
 		sw:              sw,
 		chain:           chain,
@@ -67,7 +78,7 @@ func (m *Manager) processMsg(peerID string, msgType byte, msg ConsensusMessage) 
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{"module": logModule, "peer": peer.Addr(), "type": reflect.TypeOf(msg), "message": msg.String()}).Info("receive message from peer")
+	logrus.WithFields(logrus.Fields{"module": logModule, "peer": peer.Addr(), "type": reflect.TypeOf(msg), "message": msg.String()}).Debug("receive message from peer")
 
 	switch msg := msg.(type) {
 	case *BlockProposeMsg:
@@ -95,12 +106,12 @@ func (m *Manager) handleBlockProposeMsg(peerID string, msg *BlockProposeMsg) {
 }
 
 func (m *Manager) handleBlockSignatureMsg(peerID string, msg *BlockSignatureMsg) {
+	m.peers.MarkBlockSignature(peerID, msg.Signature)
 	blockHash := bc.NewHash(msg.BlockHash)
 	if err := m.chain.ProcessBlockSignature(msg.Signature, msg.PubKey, &blockHash); err != nil {
 		m.peers.ProcessIllegal(peerID, security.LevelMsgIllegal, err.Error())
 		return
 	}
-	m.peers.MarkBlockSignature(peerID, msg.Signature)
 }
 
 func (m *Manager) blockProposeMsgBroadcastLoop() {
@@ -162,16 +173,10 @@ func (m *Manager) blockSignatureMsgBroadcastLoop() {
 				continue
 			}
 
-			blockHeader, err := m.chain.GetHeaderByHash(&ev.BlockHash)
-			if err != nil {
-				logrus.WithFields(logrus.Fields{"module": logModule, "err": err}).Error("failed on get header by hash from chain.")
-				return
-			}
-
-			blockSignatureMsg := NewBroadcastMsg(NewBlockSignatureMsg(ev.BlockHash, blockHeader.Height, ev.Signature, ev.XPub), consensusChannel)
+			blockSignatureMsg := NewBroadcastMsg(NewBlockSignatureMsg(ev.BlockHash, ev.Signature, ev.XPub), consensusChannel)
 			if err := m.peers.BroadcastMsg(blockSignatureMsg); err != nil {
 				logrus.WithFields(logrus.Fields{"module": logModule, "err": err}).Error("failed on broadcast BlockSignBroadcastMsg.")
-				return
+				continue
 			}
 
 		case <-m.quit:
@@ -186,6 +191,7 @@ func (m *Manager) removePeer(peerID string) {
 
 //Start consensus manager service.
 func (m *Manager) Start() error {
+	go m.blockFetcher.blockProcessorLoop()
 	go m.blockProposeMsgBroadcastLoop()
 	go m.blockSignatureMsgBroadcastLoop()
 	return nil

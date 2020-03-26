@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/vapor/encoding/blockchain"
-	"github.com/vapor/encoding/bufpool"
-	"github.com/vapor/errors"
+	"github.com/bytom/vapor/encoding/blockchain"
+	"github.com/bytom/vapor/encoding/bufpool"
+	"github.com/bytom/vapor/errors"
 )
 
 // serflag variables, start with 1
@@ -102,6 +102,7 @@ func (b *Block) readFrom(r *blockchain.Reader) error {
 	return nil
 }
 
+// WriteTo write block to io.Writer
 func (b *Block) WriteTo(w io.Writer) (int64, error) {
 	ew := errors.NewWriter(w)
 	if err := b.writeTo(ew, SerBlockFull); err != nil {

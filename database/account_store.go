@@ -5,14 +5,14 @@ import (
 	"sort"
 	"strings"
 
-	acc "github.com/vapor/account"
-	"github.com/vapor/blockchain/signers"
-	"github.com/vapor/common"
-	"github.com/vapor/crypto/ed25519/chainkd"
-	"github.com/vapor/crypto/sha3pool"
-	dbm "github.com/vapor/database/leveldb"
-	"github.com/vapor/errors"
-	"github.com/vapor/protocol/bc"
+	acc "github.com/bytom/vapor/account"
+	"github.com/bytom/vapor/blockchain/signers"
+	"github.com/bytom/vapor/common"
+	"github.com/bytom/vapor/crypto/ed25519/chainkd"
+	"github.com/bytom/vapor/crypto/sha3pool"
+	dbm "github.com/bytom/vapor/database/leveldb"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/protocol/bc"
 )
 
 const (
@@ -45,7 +45,7 @@ func accountIndexKey(xpubs []chainkd.XPub) []byte {
 	return append(AccountIndexPrefix, hash[:]...)
 }
 
-func Bip44ContractIndexKey(accountID string, change bool) []byte {
+func bip44ContractIndexKey(accountID string, change bool) []byte {
 	key := append(ContractIndexPrefix, []byte(accountID)...)
 	if change {
 		return append(key, 0x01)
@@ -96,7 +96,7 @@ func (store *AccountStore) InitBatch() acc.AccountStore {
 // CommitBatch commit batch
 func (store *AccountStore) CommitBatch() error {
 	if store.batch == nil {
-		return errors.New("AccountStore commit fail, store batch is nil.")
+		return errors.New("accountStore commit fail, store batch is nil")
 	}
 	store.batch.Write()
 	store.batch = nil
@@ -119,8 +119,8 @@ func (store *AccountStore) DeleteAccount(account *acc.Account) error {
 	}
 
 	// delete bip44 contract index
-	batch.Delete(Bip44ContractIndexKey(account.ID, false))
-	batch.Delete(Bip44ContractIndexKey(account.ID, true))
+	batch.Delete(bip44ContractIndexKey(account.ID, false))
+	batch.Delete(bip44ContractIndexKey(account.ID, true))
 
 	// delete contract index
 	batch.Delete(contractIndexKey(account.ID))
@@ -216,7 +216,7 @@ func (store *AccountStore) GetAccountIndex(xpubs []chainkd.XPub) uint64 {
 // GetBip44ContractIndex get bip44 contract index
 func (store *AccountStore) GetBip44ContractIndex(accountID string, change bool) uint64 {
 	index := uint64(0)
-	if rawIndexBytes := store.db.Get(Bip44ContractIndexKey(accountID, change)); rawIndexBytes != nil {
+	if rawIndexBytes := store.db.Get(bip44ContractIndexKey(accountID, change)); rawIndexBytes != nil {
 		index = common.BytesToUnit64(rawIndexBytes)
 	}
 	return index
@@ -314,7 +314,7 @@ func (store *AccountStore) ListControlPrograms() ([]*acc.CtrlProgram, error) {
 	return cps, nil
 }
 
-// ListUTXOs get utxos by accountID
+// ListUTXOs list all utxos
 func (store *AccountStore) ListUTXOs() ([]*acc.UTXO, error) {
 	utxoIter := store.db.IteratorPrefix(UTXOPrefix)
 	defer utxoIter.Release()
@@ -367,9 +367,9 @@ func (store *AccountStore) SetAccountIndex(account *acc.Account) {
 // SetBip44ContractIndex set contract index
 func (store *AccountStore) SetBip44ContractIndex(accountID string, change bool, index uint64) {
 	if store.batch == nil {
-		store.db.Set(Bip44ContractIndexKey(accountID, change), common.Unit64ToBytes(index))
+		store.db.Set(bip44ContractIndexKey(accountID, change), common.Unit64ToBytes(index))
 	} else {
-		store.batch.Set(Bip44ContractIndexKey(accountID, change), common.Unit64ToBytes(index))
+		store.batch.Set(bip44ContractIndexKey(accountID, change), common.Unit64ToBytes(index))
 	}
 }
 

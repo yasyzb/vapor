@@ -7,21 +7,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vapor/account"
-	"github.com/vapor/asset"
-	"github.com/vapor/blockchain/pseudohsm"
-	"github.com/vapor/blockchain/signers"
-	"github.com/vapor/blockchain/txbuilder"
-	"github.com/vapor/config"
-	"github.com/vapor/consensus"
-	"github.com/vapor/crypto/ed25519/chainkd"
-	"github.com/vapor/database"
-	dbm "github.com/vapor/database/leveldb"
-	"github.com/vapor/event"
-	"github.com/vapor/protocol"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	wt "github.com/vapor/wallet"
+	"github.com/bytom/vapor/account"
+	"github.com/bytom/vapor/asset"
+	"github.com/bytom/vapor/blockchain/pseudohsm"
+	"github.com/bytom/vapor/blockchain/signers"
+	"github.com/bytom/vapor/blockchain/txbuilder"
+	"github.com/bytom/vapor/config"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/crypto/ed25519/chainkd"
+	"github.com/bytom/vapor/database"
+	dbm "github.com/bytom/vapor/database/leveldb"
+	"github.com/bytom/vapor/event"
+	"github.com/bytom/vapor/protocol"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	wt "github.com/bytom/vapor/wallet"
 )
 
 func TestWalletUpdate(t *testing.T) {
@@ -41,9 +41,9 @@ func TestWalletUpdate(t *testing.T) {
 	store := database.NewStore(testDB)
 	walletStore := database.NewWalletStore(testDB)
 	dispatcher := event.NewDispatcher()
-	txPool := protocol.NewTxPool(store, dispatcher)
+	txPool := protocol.NewTxPool(store, nil, dispatcher)
 
-	chain, err := protocol.NewChain(store, txPool, dispatcher)
+	chain, err := protocol.NewChain(store, txPool, nil, dispatcher)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,8 +140,8 @@ func TestRescanWallet(t *testing.T) {
 
 	store := database.NewStore(testDB)
 	dispatcher := event.NewDispatcher()
-	txPool := protocol.NewTxPool(store, dispatcher)
-	chain, err := protocol.NewChain(store, txPool, dispatcher)
+	txPool := protocol.NewTxPool(store, nil, dispatcher)
+	chain, err := protocol.NewChain(store, txPool, nil, dispatcher)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,9 +191,9 @@ func TestMemPoolTxQueryLoop(t *testing.T) {
 
 	store := database.NewStore(testDB)
 	dispatcher := event.NewDispatcher()
-	txPool := protocol.NewTxPool(store, dispatcher)
+	txPool := protocol.NewTxPool(store, nil, dispatcher)
 
-	chain, err := protocol.NewChain(store, txPool, dispatcher)
+	chain, err := protocol.NewChain(store, txPool, nil, dispatcher)
 	if err != nil {
 		t.Fatal(err)
 	}

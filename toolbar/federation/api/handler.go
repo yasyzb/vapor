@@ -7,14 +7,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/vapor/errors"
-	"github.com/vapor/toolbar/federation/common"
-	"github.com/vapor/toolbar/federation/database/orm"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/toolbar/federation/common"
+	"github.com/bytom/vapor/toolbar/federation/database/orm"
+	serverCommon "github.com/bytom/vapor/toolbar/server"
 )
 
-type listCrosschainTxsReq struct{ Display }
+type listCrosschainTxsReq struct{ serverCommon.Display }
 
-func (s *Server) ListCrosschainTxs(c *gin.Context, listTxsReq *listCrosschainTxsReq, query *PaginationQuery) ([]*orm.CrossTransaction, error) {
+func (s *Server) ListCrosschainTxs(c *gin.Context, listTxsReq *listCrosschainTxsReq, query *serverCommon.PaginationQuery) ([]*orm.CrossTransaction, error) {
 	var ormTxs []*orm.CrossTransaction
 	txFilter := &orm.CrossTransaction{}
 
@@ -33,7 +34,7 @@ func (s *Server) ListCrosschainTxs(c *gin.Context, listTxsReq *listCrosschainTxs
 		txFilter.SourceTxHash = txHash
 	}
 	if txHash, err := listTxsReq.GetFilterString("dest_tx_hash"); err == nil && txHash != "" {
-		txFilter.DestTxHash = sql.NullString{txHash, true}
+		txFilter.DestTxHash = sql.NullString{String: txHash, Valid: true}
 	}
 
 	txQuery := s.db.Preload("Chain").Preload("Reqs").Preload("Reqs.Asset").Where(txFilter)
@@ -56,4 +57,13 @@ func (s *Server) ListCrosschainTxs(c *gin.Context, listTxsReq *listCrosschainTxs
 	}
 
 	return ormTxs, nil
+}
+
+func (s *Server) ListChains(c *gin.Context) ([]*orm.Chain, error) {
+	var chains []*orm.Chain
+	if err := s.db.Find(&chains).Error; err != nil {
+		return nil, err
+	}
+
+	return chains, nil
 }

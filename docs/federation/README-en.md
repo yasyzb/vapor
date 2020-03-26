@@ -24,18 +24,19 @@ A `fed_cfg.json` would look like this:
         },
         "log_mode" : true
     },
-    "federation_prog" : "0020305dc12c0dbec0c1dc1f30e835034c1f19094c06afb0eb953a6d1af42222a721",
+    "network" : "testnet",
+    "federation_prog" : "0020f86826d640810eb08a2bfb706e0092273e05e9a7d3d71f9d53f4f6cc2e3d6c6a",
     "mainchain" : {
-        "name" : "bytom",
+        "name" : "btm",
         "confirmations" : 10,
         "upstream" : "http://127.0.0.1:9888",
         "sync_seconds" : 150
     },
     "sidechain" : {
         "name" : "vapor",
-        "confirmations" : 100,
+        "confirmations" : 300,
         "upstream" : "http://127.0.0.1:9889",
-        "sync_seconds" : 5
+        "sync_seconds" : 150
     }
 }
 ```

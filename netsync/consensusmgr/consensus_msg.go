@@ -8,9 +8,9 @@ import (
 
 	"github.com/tendermint/go-wire"
 
-	"github.com/vapor/netsync/peers"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/netsync/peers"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 const (
@@ -46,19 +46,18 @@ func decodeMessage(bz []byte) (msgType byte, msg ConsensusMessage, err error) {
 // BlockSignatureMsg block signature message transferred between nodes.
 type BlockSignatureMsg struct {
 	BlockHash [32]byte
-	Height    uint64
 	Signature []byte
 	PubKey    []byte
 }
 
 //NewBlockSignatureMsg create new block signature msg.
-func NewBlockSignatureMsg(blockHash bc.Hash, height uint64, signature, pubKey []byte) ConsensusMessage {
+func NewBlockSignatureMsg(blockHash bc.Hash, signature, pubKey []byte) ConsensusMessage {
 	hash := blockHash.Byte32()
-	return &BlockSignatureMsg{BlockHash: hash, Height: height, Signature: signature, PubKey: pubKey}
+	return &BlockSignatureMsg{BlockHash: hash, Signature: signature, PubKey: pubKey}
 }
 
 func (bs *BlockSignatureMsg) String() string {
-	return fmt.Sprintf("{block_hash: %s,block_height:%d,signature:%s,pubkey:%s}", hex.EncodeToString(bs.BlockHash[:]), bs.Height, hex.EncodeToString(bs.Signature), hex.EncodeToString(bs.PubKey[:]))
+	return fmt.Sprintf("{block_hash: %s,signature:%s,pubkey:%s}", hex.EncodeToString(bs.BlockHash[:]), hex.EncodeToString(bs.Signature), hex.EncodeToString(bs.PubKey[:]))
 }
 
 // BroadcastMarkSendRecord mark send message record to prevent messages from being sent repeatedly.
@@ -70,7 +69,7 @@ func (bs *BlockSignatureMsg) BroadcastMarkSendRecord(ps *peers.PeerSet, peers []
 
 // BroadcastFilterTargetPeers filter target peers to filter the nodes that need to send messages.
 func (bs *BlockSignatureMsg) BroadcastFilterTargetPeers(ps *peers.PeerSet) []string {
-	return ps.PeersWithoutSign(bs.Signature)
+	return ps.PeersWithoutSignature(bs.Signature)
 }
 
 // BlockProposeMsg block propose message transferred between nodes.

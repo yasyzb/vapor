@@ -16,7 +16,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/vapor/crypto/ed25519/internal/edwards25519"
+	"github.com/bytom/vapor/crypto/ed25519/internal/edwards25519"
 )
 
 const (
@@ -35,6 +35,10 @@ type PublicKey []byte
 
 // PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
 type PrivateKey []byte
+
+func (pub PublicKey) String() string {
+	return hex.EncodeToString(pub)
+}
 
 // Public returns the PublicKey corresponding to priv.
 func (priv PrivateKey) Public() PublicKey {

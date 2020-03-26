@@ -5,31 +5,36 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/vapor/errors"
-	"github.com/vapor/netsync/peers"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/errors"
+	"github.com/bytom/vapor/netsync/peers"
+	"github.com/bytom/vapor/p2p/security"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 var (
-	maxNumOfSkeletonPerSync = uint64(10)
-	numOfBlocksSkeletonGap  = maxNumOfBlocksPerMsg
-	maxNumOfBlocksPerSync   = numOfBlocksSkeletonGap * maxNumOfSkeletonPerSync
-	fastSyncPivotGap        = uint64(64)
-	minGapStartFastSync     = uint64(128)
+	minSizeOfSyncSkeleton  = 2
+	maxSizeOfSyncSkeleton  = 11
+	numOfBlocksSkeletonGap = maxNumOfBlocksPerMsg
+	maxNumOfBlocksPerSync  = numOfBlocksSkeletonGap * uint64(maxSizeOfSyncSkeleton-1)
+	fastSyncPivotGap       = uint64(64)
+	minGapStartFastSync    = uint64(128)
 
-	errNoSyncPeer = errors.New("can't find sync peer")
+	errNoSyncPeer      = errors.New("can't find sync peer")
+	errSkeletonSize    = errors.New("fast sync skeleton size wrong")
+	errNoMainSkeleton  = errors.New("No main skeleton found")
+	errNoSkeletonFound = errors.New("No skeleton found")
 )
 
 type fastSync struct {
 	chain          Chain
 	msgFetcher     MsgFetcher
-	blockProcessor BlockProcessor
+	blockProcessor *blockProcessor
 	peers          *peers.PeerSet
 	mainSyncPeer   *peers.Peer
 }
 
-func newFastSync(chain Chain, msgFetcher MsgFetcher, storage Storage, peers *peers.PeerSet) *fastSync {
+func newFastSync(chain Chain, msgFetcher MsgFetcher, storage *storage, peers *peers.PeerSet) *fastSync {
 	return &fastSync{
 		chain:          chain,
 		msgFetcher:     msgFetcher,
@@ -80,12 +85,17 @@ func (fs *fastSync) createFetchBlocksTasks(stopBlock *types.Block) ([]*fetchBloc
 	stopHash := stopBlock.Hash()
 	skeletonMap := fs.msgFetcher.parallelFetchHeaders(peers, fs.blockLocator(), &stopHash, numOfBlocksSkeletonGap-1)
 	if len(skeletonMap) == 0 {
-		return nil, errors.New("No skeleton found")
+		return nil, errNoSkeletonFound
 	}
 
 	mainSkeleton, ok := skeletonMap[fs.mainSyncPeer.ID()]
 	if !ok {
-		return nil, errors.New("No main skeleton found")
+		return nil, errNoMainSkeleton
+	}
+
+	if len(mainSkeleton) < minSizeOfSyncSkeleton {
+		fs.peers.ProcessIllegal(fs.mainSyncPeer.ID(), security.LevelMsgIllegal, errSkeletonSize.Error())
+		return nil, errSkeletonSize
 	}
 
 	// collect peers that match the skeleton of the primary sync peer
@@ -108,7 +118,7 @@ func (fs *fastSync) createFetchBlocksTasks(stopBlock *types.Block) ([]*fetchBloc
 
 	blockFetchTasks := make([]*fetchBlocksWork, 0)
 	// create download task
-	for i := 0; i < len(mainSkeleton)-1; i++ {
+	for i := 0; i < len(mainSkeleton)-1 && i < maxSizeOfSyncSkeleton-1; i++ {
 		blockFetchTasks = append(blockFetchTasks, &fetchBlocksWork{startHeader: mainSkeleton[i], stopHeader: mainSkeleton[i+1]})
 	}
 
@@ -142,7 +152,7 @@ func (fs *fastSync) process() error {
 // sync length cannot be greater than maxFastSyncBlocksNum.
 func (fs *fastSync) findSyncRange() (*types.Block, error) {
 	bestHeight := fs.chain.BestBlockHeight()
-	length := fs.mainSyncPeer.IrreversibleHeight() - fastSyncPivotGap - bestHeight
+	length := fs.mainSyncPeer.Height() - fastSyncPivotGap - bestHeight
 	if length > maxNumOfBlocksPerSync {
 		length = maxNumOfBlocksPerSync
 	}

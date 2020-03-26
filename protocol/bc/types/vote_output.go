@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc"
 )
 
 // VoteOutput satisfies the TypedOutput interface and represents a vote transaction.
@@ -30,4 +30,5 @@ func NewVoteOutput(assetID bc.AssetID, amount uint64, controlProgram []byte, vot
 	}
 }
 
+// OutputType implement the txout interface
 func (it *VoteOutput) OutputType() uint8 { return VoteOutputType }

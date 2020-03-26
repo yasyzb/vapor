@@ -8,13 +8,14 @@ import (
 	"github.com/spf13/viper"
 	cmn "github.com/tendermint/tmlibs/common"
 
-	cfg "github.com/vapor/config"
+	cfg "github.com/bytom/vapor/config"
 )
 
 var (
 	config = cfg.DefaultConfig()
 )
 
+// RootCmd is the command for run node
 var RootCmd = &cobra.Command{
 	Use:   "vapord",
 	Short: "Multiple asset management.",

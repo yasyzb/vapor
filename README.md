@@ -12,7 +12,8 @@ Vapor
 ## Get source code
 
 ```
-$ git clone https://github.com/Bytom/vapor.git $GOPATH/src/github.com/vapor
+$ cd $GOPATH/src/github.com/bytom
+$ git clone https://github.com/Bytom/vapor.git
 ```
 
 Then, you have two ways to get vapor executable file:
@@ -23,7 +24,7 @@ Then, you have two ways to get vapor executable file:
 ## Installation
 
 ```
-$ cd $GOPATH/src/github.com/vapor
+$ cd $GOPATH/src/github.com/bytom/vapor
 $ make install
 ```
 
@@ -32,7 +33,7 @@ $ make install
 Firstly, you need initialize node:
 
 ```
-$ vapord init --chain_id=vapor --home <vapor-data-path>
+$ vapord init --chain_id=mainnet --home <vapor-data-path>
 ```
 
 The default vapor data path (on the host) is:
@@ -51,7 +52,7 @@ $ vapord node --home <vapor-data-path>
 ### Build the image
 
 ```
-$ cd $GOPATH/src/github.com/vapor
+$ cd $GOPATH/src/github.com/bytom/vapor
 $ docker build -t vapor .
 ```
 
@@ -106,6 +107,25 @@ To remove a containner:
 ```
 $ docker rm <containerId>
 ```
+
+### Reward distribution tool
+
+After the supernode and alternative node receive the reward from the node, they will allocate the reward
+
+according to the interest rate. 
+
+The reward calculation rules: 
+
+ calculate the reward (consensus reward * interest rate * voting weight) according to the weight of votes
+
+cast in consensus around, and choose how many rounds of consensus to allocate the reward flexibly.
+
+[Tool usage details](./cmd/votereward/README.md)
+
+
+### Merger utxo
+UTXO has been merged to solve the problem that too much UTXO input causes a failed send transaction to fail. 
+[details](./cmd/utxomerge/README.md)
 
 ## License
 

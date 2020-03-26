@@ -7,13 +7,13 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/vapor/common"
-	cfg "github.com/vapor/config"
-	"github.com/vapor/consensus"
-	"github.com/vapor/encoding/json"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
-	"github.com/vapor/protocol/vm/vmutil"
+	"github.com/bytom/vapor/common"
+	cfg "github.com/bytom/vapor/config"
+	"github.com/bytom/vapor/consensus"
+	"github.com/bytom/vapor/encoding/json"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/protocol/vm/vmutil"
 )
 
 // DecodeControlAddressAction convert input data to action struct
@@ -150,13 +150,14 @@ func DecodeCrossOutAction(data []byte) (Action, error) {
 
 type crossOutAction struct {
 	bc.AssetAmount
-	Address string `json:"address"`
+	Address string        `json:"address"`
+	Program json.HexBytes `json:"control_program"`
 }
 
 func (a *crossOutAction) Build(ctx context.Context, b *TemplateBuilder) error {
 	var missing []string
-	if a.Address == "" {
-		missing = append(missing, "address")
+	if a.Address == "" && len(a.Program) == 0 {
+		missing = append(missing, "address or program")
 	}
 	if a.AssetId.IsZero() {
 		missing = append(missing, "asset_id")
@@ -168,23 +169,25 @@ func (a *crossOutAction) Build(ctx context.Context, b *TemplateBuilder) error {
 		return MissingFieldsError(missing...)
 	}
 
-	address, err := common.DecodeAddress(a.Address, &consensus.BytomMainNetParams)
-	if err != nil {
-		return err
-	}
+	program := a.Program
+	if a.Address != "" {
+		address, err := common.DecodeAddress(a.Address, consensus.BytomMainNetParams(&consensus.ActiveNetParams))
+		if err != nil {
+			return err
+		}
 
-	redeemContract := address.ScriptAddress()
-	program := []byte{}
-	switch address.(type) {
-	case *common.AddressWitnessPubKeyHash:
-		program, err = vmutil.P2WPKHProgram(redeemContract)
-	case *common.AddressWitnessScriptHash:
-		program, err = vmutil.P2WSHProgram(redeemContract)
-	default:
-		return errors.New("unsupport address type")
-	}
-	if err != nil {
-		return err
+		redeemContract := address.ScriptAddress()
+		switch address.(type) {
+		case *common.AddressWitnessPubKeyHash:
+			program, err = vmutil.P2WPKHProgram(redeemContract)
+		case *common.AddressWitnessScriptHash:
+			program, err = vmutil.P2WSHProgram(redeemContract)
+		default:
+			return errors.New("unsupport address type")
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	out := types.NewCrossChainOutput(*a.AssetId, a.Amount, program)
@@ -269,15 +272,15 @@ type crossInAction struct {
 	IssuanceProgram   json.HexBytes `json:"issuance_program"`
 }
 
-func (a *crossInAction) Build(ctx context.Context, builder *TemplateBuilder) error {
+func (c *crossInAction) Build(ctx context.Context, builder *TemplateBuilder) error {
 	var missing []string
-	if a.SourceID.IsZero() {
+	if c.SourceID.IsZero() {
 		missing = append(missing, "source_id")
 	}
-	if a.AssetId.IsZero() {
+	if c.AssetId.IsZero() {
 		missing = append(missing, "asset_id")
 	}
-	if a.Amount == 0 {
+	if c.Amount == 0 {
 		missing = append(missing, "amount")
 	}
 
@@ -285,20 +288,24 @@ func (a *crossInAction) Build(ctx context.Context, builder *TemplateBuilder) err
 		return MissingFieldsError(missing...)
 	}
 
-	if err := a.checkAssetID(); err != nil {
+	if err := c.checkAssetID(); err != nil {
 		return err
 	}
 
 	// arguments will be set when materializeWitnesses
-	txin := types.NewCrossChainInput(nil, a.SourceID, *a.AssetId, a.Amount, a.SourcePos, a.VMVersion, a.RawDefinitionByte, a.IssuanceProgram)
+	txin := types.NewCrossChainInput(nil, c.SourceID, *c.AssetId, c.Amount, c.SourcePos, c.VMVersion, c.RawDefinitionByte, c.IssuanceProgram)
 	tplIn := &SigningInstruction{}
 	fed := cfg.CommonConfig.Federation
-	tplIn.AddRawWitnessKeys(fed.Xpubs, cfg.FedAddressPath, fed.Quorum)
-	tplIn.AddDataWitness(cfg.FederationPMultiSigScript(cfg.CommonConfig))
+
+	if !common.IsOpenFederationIssueAsset(c.RawDefinitionByte) {
+		tplIn.AddRawWitnessKeys(fed.Xpubs, cfg.FedAddressPath, fed.Quorum)
+		tplIn.AddDataWitness(cfg.FederationPMultiSigScript(cfg.CommonConfig))
+	}
+
 	return builder.AddInput(txin, tplIn)
 }
 
-func (a *crossInAction) ActionType() string {
+func (c *crossInAction) ActionType() string {
 	return "cross_chain_in"
 }
 

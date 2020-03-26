@@ -30,19 +30,25 @@ moniker = ""
 var mainNetConfigTmpl = `chain_id = "mainnet"
 [p2p]
 laddr = "tcp://0.0.0.0:56656"
-seeds = "52.82.28.25:56656,52.82.31.195:56656,52.82.31.247:56656"
+seeds = "47.103.79.68:56656,47.103.13.86:56656,47.102.193.119:56656,47.103.17.22:56656"
+[cross_chain]
+asset_whitelist = "184e1cc4ee4845023888810a79eed7a42c02c544cf2c61ceac05e176d575bd46,78de44ffa1bce37b757c9eae8925b5f199dc4621b412ef0f3f46168865284a93"
 `
 
 var testNetConfigTmpl = `chain_id = "testnet"
 [p2p]
 laddr = "tcp://0.0.0.0:56657"
-seeds = ""
+seeds = "52.82.7.233:56657,52.82.109.252:56657,52.82.29.30:56657"
+[cross_chain]
+asset_whitelist = ""
 `
 
 var soloNetConfigTmpl = `chain_id = "solonet"
 [p2p]
 laddr = "tcp://0.0.0.0:56658"
 seeds = ""
+[cross_chain]
+asset_whitelist = ""
 `
 
 // Select network seeds to merge a new string.

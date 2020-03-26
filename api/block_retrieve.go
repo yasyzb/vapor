@@ -3,10 +3,10 @@ package api
 import (
 	set "gopkg.in/fatih/set.v0"
 
-	"github.com/vapor/blockchain/query"
-	chainjson "github.com/vapor/encoding/json"
-	"github.com/vapor/protocol/bc"
-	"github.com/vapor/protocol/bc/types"
+	"github.com/bytom/vapor/blockchain/query"
+	chainjson "github.com/bytom/vapor/encoding/json"
+	"github.com/bytom/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc/types"
 )
 
 // return best block hash
@@ -72,10 +72,11 @@ func (a *API) getBlock(ins BlockReq) Response {
 	for i, w := range block.Witness {
 		witness[i] = w
 	}
-
-	blocker, err := a.chain.GetBlocker(&block.PreviousBlockHash, block.Timestamp)
-	if err != nil {
-		return NewErrorResponse(err)
+	var blocker string
+	if block.Height > 0 {
+		if blocker, err = a.chain.GetBlocker(&block.PreviousBlockHash, block.Timestamp); err != nil {
+			return NewErrorResponse(err)
+		}
 	}
 
 	resp := &GetBlockResp{

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/vapor/protocol/bc"
+	"github.com/bytom/vapor/protocol/bc"
 )
 
 // IntraChainOutput satisfies the TypedOutput interface and represents a intra-chain transaction.
@@ -28,4 +28,5 @@ func NewIntraChainOutput(assetID bc.AssetID, amount uint64, controlProgram []byt
 	}
 }
 
+// OutputType implement the txout interface
 func (it *IntraChainOutput) OutputType() uint8 { return IntraChainOutputType }
