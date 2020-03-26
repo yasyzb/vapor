@@ -29,9 +29,9 @@ const (
 )
 
 // NewBlockTemplate returns a new block template that is ready to be solved
-func NewBlockTemplate(chain *protocol.Chain, accountManager *account.Manager, timestamp uint64, warnDuration, criticalDuration time.Duration) (*types.Block, error) {
+func NewBlockTemplate(chain *protocol.Chain, accountManager *account.Manager, timestamp uint64, warnDuration, criticalDuration time.Duration, address []byte, pubKey, priKey string) (*types.Block, error) {
 	builder := newBlockBuilder(chain, accountManager, timestamp, warnDuration, criticalDuration)
-	return builder.build()
+	return builder.build(address, pubKey, priKey)
 }
 
 type blockBuilder struct {
@@ -75,8 +75,8 @@ func newBlockBuilder(chain *protocol.Chain, accountManager *account.Manager, tim
 	return builder
 }
 
-func (b *blockBuilder) applyCoinbaseTransaction() error {
-	coinbaseTx, err := b.createCoinbaseTx()
+func (b *blockBuilder) applyCoinbaseTransaction(address []byte) error {
+	coinbaseTx, err := b.createCoinbaseTx(address)
 	if err != nil {
 		return errors.Wrap(err, "fail on create coinbase tx")
 	}
@@ -161,8 +161,8 @@ func (b *blockBuilder) applyTransactionFromSubProtocol() error {
 	return nil
 }
 
-func (b *blockBuilder) build() (*types.Block, error) {
-	if err := b.applyCoinbaseTransaction(); err != nil {
+func (b *blockBuilder) build(address []byte, pubKey, priKey string) (*types.Block, error) {
+	if err := b.applyCoinbaseTransaction(address); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +178,7 @@ func (b *blockBuilder) build() (*types.Block, error) {
 		return nil, err
 	}
 
-	if err := b.chain.SignBlockHeader(&b.block.BlockHeader); err != nil {
+	if err := b.chain.SignBlockHeader(&b.block.BlockHeader, pubKey, priKey); err != nil {
 		return nil, err
 	}
 
@@ -203,7 +203,7 @@ func (b *blockBuilder) calcBlockCommitment() (err error) {
 // createCoinbaseTx returns a coinbase transaction paying an appropriate subsidy
 // based on the passed block height to the provided address.  When the address
 // is nil, the coinbase transaction will instead be redeemable by anyone.
-func (b *blockBuilder) createCoinbaseTx() (*types.Tx, error) {
+func (b *blockBuilder) createCoinbaseTx(address []byte) (*types.Tx, error) {
 	consensusResult, err := b.chain.GetConsensusResultByHash(&b.block.PreviousBlockHash)
 	if err != nil {
 		return nil, err
@@ -214,7 +214,7 @@ func (b *blockBuilder) createCoinbaseTx() (*types.Tx, error) {
 		return nil, err
 	}
 
-	return createCoinbaseTxByReward(b.accountManager, b.block.Height, rewards)
+	return createCoinbaseTxByReward(b.accountManager, b.block.Height, rewards, address)
 }
 
 func (b *blockBuilder) getTimeoutStatus() uint8 {
@@ -233,13 +233,13 @@ func (b *blockBuilder) getTimeoutStatus() uint8 {
 	return b.timeoutStatus
 }
 
-func createCoinbaseTxByReward(accountManager *account.Manager, blockHeight uint64, rewards []state.CoinbaseReward) (tx *types.Tx, err error) {
+func createCoinbaseTxByReward(accountManager *account.Manager, blockHeight uint64, rewards []state.CoinbaseReward, address []byte) (tx *types.Tx, err error) {
 	arbitrary := append([]byte{0x00}, []byte(strconv.FormatUint(blockHeight, 10))...)
 	var script []byte
 	if accountManager == nil {
 		script, err = vmutil.DefaultCoinbaseProgram()
 	} else {
-		script, err = accountManager.GetCoinbaseControlProgram()
+		script = address
 		arbitrary = append(arbitrary, accountManager.GetCoinbaseArbitrary()...)
 	}
 	if err != nil {
