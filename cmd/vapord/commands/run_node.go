@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bytom/vapor/node"
+	cfg "github.com/bytom/vapor/config"
 )
 
 const logModule = "cmd"
@@ -76,6 +77,7 @@ func setLogLevel(level string) {
 }
 
 func runNode(cmd *cobra.Command, args []string) error {
+	cfg.InitKeyConfig(config.RootDir)
 	startTime := time.Now()
 	setLogLevel(config.LogLevel)
 

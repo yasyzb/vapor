@@ -364,18 +364,8 @@ func (m *Manager) GetCoinbaseArbitrary() []byte {
 }
 
 // GetCoinbaseControlProgram will return a coinbase script
-func (m *Manager) GetCoinbaseControlProgram() ([]byte, error) {
-	cp, err := m.GetCoinbaseCtrlProgram()
-	if err == ErrFindAccount {
-		log.Warningf("GetCoinbaseControlProgram: can't find any account in db")
-		return vmutil.DefaultCoinbaseProgram()
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return cp.ControlProgram, nil
+func (m *Manager) GetCoinbaseControlProgram(address string) ([]byte, error) {
+	return m.getProgramByAddress(address)
 }
 
 // GetCoinbaseCtrlProgram will return the coinbase CtrlProgram

@@ -1,7 +1,6 @@
 package blockproposer
 
 import (
-	"encoding/hex"
 	"sync"
 	"time"
 
@@ -42,8 +41,6 @@ type BlockProposer struct {
 //
 // It must be run as a goroutine.
 func (b *BlockProposer) generateBlocks() {
-	xpub := config.CommonConfig.PrivateKey().XPub()
-	xpubStr := hex.EncodeToString(xpub[:])
 	ticker := time.NewTicker(time.Duration(consensus.ActiveNetParams.BlockTimeInterval) * time.Millisecond)
 	defer ticker.Stop()
 
@@ -70,17 +67,18 @@ func (b *BlockProposer) generateBlocks() {
 
 		blocker, err := b.chain.GetBlocker(&bestBlockHash, nextBlockTime)
 		if err != nil {
-			log.WithFields(log.Fields{"module": logModule, "error": err, "pubKey": xpubStr}).Error("fail on check is next blocker")
+			log.WithFields(log.Fields{"module": logModule, "error": err}).Error("fail on check is next blocker")
 			continue
 		}
 
-		if xpubStr != blocker {
+		address, priKey := config.GetAddrAndPriKey(blocker)
+		if address == nil || priKey == "" {
 			continue
 		}
 
 		warnDuration := time.Duration(consensus.ActiveNetParams.BlockTimeInterval*warnTimeNum/warnTimeDenom) * time.Millisecond
 		criticalDuration := time.Duration(consensus.ActiveNetParams.BlockTimeInterval*criticalTimeNum/criticalTimeDenom) * time.Millisecond
-		block, err := proposal.NewBlockTemplate(b.chain, b.accountManager, nextBlockTime, warnDuration, criticalDuration)
+		block, err := proposal.NewBlockTemplate(b.chain, b.accountManager, nextBlockTime, warnDuration, criticalDuration, address, blocker, priKey)
 		if err != nil {
 			log.WithFields(log.Fields{"module": logModule, "error": err}).Error("failed on create NewBlockTemplate")
 			continue

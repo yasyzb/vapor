@@ -205,33 +205,50 @@ func (c *Chain) ProcessBlockSignature(signature, xPub []byte, blockHash *bc.Hash
 }
 
 // SignBlockHeader signing the block if current node is consensus node
-func (c *Chain) SignBlockHeader(blockHeader *types.BlockHeader) error {
-	_, err := c.signBlockHeader(blockHeader)
+func (c *Chain) SignBlockHeader(blockHeader *types.BlockHeader, pubKey, priKey string) error {
+	_, err := c.signBlockHeader(blockHeader, pubKey, priKey)
 	return err
 }
 
 func (c *Chain) applyBlockSign(blockHeader *types.BlockHeader) error {
-	signature, err := c.signBlockHeader(blockHeader)
+	consensusNodeMap, err := c.getConsensusNodes(&blockHeader.PreviousBlockHash)
 	if err != nil {
 		return err
 	}
+	for pubKey, _ := range consensusNodeMap {
+		address, priKey := config.GetAddrAndPriKey(pubKey)
+		if address == nil || priKey == "" {
+			continue
+		}
+		signature, err := c.signBlockHeader(blockHeader, pubKey, priKey)
+		if err != nil {
+		return err
+	}
 
-	if len(signature) == 0 {
-		return nil
+		if len(signature) == 0 {
+			return nil
+		}
+
+		var xPub chainkd.XPub
+		if _, err := hex.Decode(xPub[:], []byte(pubKey)); err != nil {
+			log.WithField("err", err).Panic("fail on decode public key", pubKey)
+		}
+		c.eventDispatcher.Post(event.BlockSignatureEvent{BlockHash: blockHeader.Hash(), Signature: signature, XPub: xPub[:]})
 	}
 
 	if err := c.store.SaveBlockHeader(blockHeader); err != nil {
 		return err
 	}
-
-	xpub := config.CommonConfig.PrivateKey().XPub()
-	return c.eventDispatcher.Post(event.BlockSignatureEvent{BlockHash: blockHeader.Hash(), Signature: signature, XPub: xpub[:]})
+	return nil
 }
 
-func (c *Chain) signBlockHeader(blockHeader *types.BlockHeader) ([]byte, error) {
-	xprv := config.CommonConfig.PrivateKey()
-	xpub := xprv.XPub()
-	node, err := c.getConsensusNode(&blockHeader.PreviousBlockHash, xpub.String())
+func (c *Chain) signBlockHeader(blockHeader *types.BlockHeader, pubKey, priKey string) ([]byte, error) {
+	var xprv chainkd.XPrv
+	if _, err := hex.Decode(xprv[:], []byte(priKey)); err != nil {
+		log.WithField("err", err).Panic("fail on decode private key", priKey)
+	}
+
+	node, err := c.getConsensusNode(&blockHeader.PreviousBlockHash, pubKey)
 	blockHash := blockHeader.Hash()
 	if err == errNotFoundConsensusNode {
 		log.WithFields(log.Fields{"module": logModule, "blockHash": blockHash.String()}).Debug("can't find consensus node of current node")
